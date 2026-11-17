@@ -1,0 +1,12 @@
+{
+  "name": "zieksef",
+  "plugins": [
+    {
+      "name": "zstack",
+      "source": {
+        "source": "local",
+        "path": "./"
+      }
+    }
+  ]
+}
