@@ -1,9 +1,5 @@
 {
   "name": "zstack",
-  "version": "0.1.0",
-  "description": "Rigorous agent workflows for Claude Code and Codex: 49 skills and 2 agents.",
-  "license": "MIT",
-  "skills": "./skills/",
   "interface": {
     "displayName": "zstack",
     "shortDescription": "Rigorous agent workflows",
