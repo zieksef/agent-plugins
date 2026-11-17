@@ -9,7 +9,7 @@ zstack skills use their own names for tools, subagent fields, models, and paths.
 | `Task` | `spawn_agent` with `fork_turns: "none"`. Put the brief in `message`. The default, `fork_turns: "all"`, copies this whole conversation into the subagent, and a zstack brief stands alone. |
 | `AskQuestion` | The session's question tool, such as `request_user_input`, when it offers one. Otherwise ask in plain text and wait for the reply. |
 | Open a todolist | Use the plan tool if the session offers it. Otherwise keep the list in your reply and update it at each phase. |
-| Run another zstack skill (`/name` or "the **name** skill") | Read `<zstack>/skills/<name>/SKILL.md` and follow it. Every skill here turns implicit invocation off, so Codex never loads one for you. When you tell the user to run it, tell them to type `$` and pick `<name>`. A plugin install lists it as `zstack:<name>`. |
+| Run another zstack skill (`/name` or "the **name** skill") | Read `<zstack>/skills/<name>/SKILL.md` and follow it. Every skill here except **standards** turns implicit invocation off, so Codex loads no other skill for you. When you tell the user to run it, tell them to type `$` and pick `<name>`. A plugin install lists it as `zstack:<name>`. |
 | `Grep`, `Glob` | A shell command with `rg`. |
 | The `create-skill` skill | The bundled `skill-creator` skill. |
 | `/loop` | Codex has no `/loop` command. To wait inside this turn, use the `sleep` tool when the session offers it. For a check that recurs after the turn ends, use a scheduled task or an automation when the session offers one. Otherwise skip the step with the line in Features Codex lacks. |
