@@ -45,6 +45,7 @@ zstack skills use their own names for tools, subagent fields, models, and paths.
 | `.claude/skills/`, `~/.claude/skills/` | `.agents/skills/`, `~/.agents/skills/` |
 | `~/.claude/plugins/` | `~/.codex/plugins/` |
 | The `agent-transcripts/` directory that the system prompt names, and `~/.claude/projects/<slug>/` | `~/.codex/sessions/<year>/<month>/<day>/rollout-<timestamp>-<id>.jsonl`. Codex files sessions by date, not by workspace. The first line of each file is a `session_meta` record, and its `payload.cwd` is the workspace. Read only the files whose `cwd` is this workspace or a folder inside it. |
+| The first JSONL line's `message.content[0].text` holds the opening user prompt | Not in Codex. A user message is a `response_item` record whose `payload.role` is `user`, and its text is in `payload.content[].text`. Records before the opening prompt can hold injected context, such as the AGENTS.md instructions, so check every user record in the file. A subagent's session is a separate file, and its `session_meta` has a `payload.parent_thread_id` that equals the parent's `payload.id`. |
 
 ## Features Codex lacks
 

@@ -51,10 +51,10 @@ Close.
 Recorded.
 `;
 
-const runPlan = (example, expectedExit) => {
+const checkPlan = (plan, expectedExit) => {
 	const directory = mkdtempSync(join(tmpdir(), "check-plan-test-"));
 	const file = join(directory, "plan.md");
-	writeFileSync(file, validPlan + example);
+	writeFileSync(file, plan);
 	try {
 		const result = spawnSync("node", [checker, file], { encoding: "utf8" });
 		assert.equal(result.status, expectedExit, result.stderr);
@@ -63,6 +63,8 @@ const runPlan = (example, expectedExit) => {
 		rmSync(directory, { recursive: true, force: true });
 	}
 };
+
+const runPlan = (example, expectedExit) => checkPlan(validPlan + example, expectedExit);
 
 test("accepts ordinary, indented, and longer closing fences", () => {
 	for (const indent of ["", " ", "  ", "   "])
@@ -108,4 +110,17 @@ test("checks prose following a multi-backtick span and unmatched delimiters", ()
 	assert.ok(outside.stderr.includes("mid-sentence colon"), outside.stderr);
 	const unmatched = runPlan("Use ``unclosed: bad` here.\n", 1);
 	assert.ok(unmatched.stderr.includes("mid-sentence colon"), unmatched.stderr);
+});
+
+test("rejects required markers that appear only inside a code fence", () => {
+	const markers = "`git show origin/main:` /loop 1h status message";
+	const result = checkPlan(validPlan.replace(markers, "```text\n" + markers + "\n```"), 1);
+	assert.ok(result.stderr.includes('Program checklist lacks "/loop 1h"'), result.stderr);
+});
+
+test("rejects a lane that keeps a template placeholder", () => {
+	const lane = "- [ ] Lane 3. Save `lane-3.png`. Pass when evidence exists.";
+	const unfilled = checkPlan(validPlan.replace(lane, "- [ ] Lane 3. Save `<slug>.png`. Pass when <predicate>."), 1);
+	assert.ok(unfilled.stderr.includes("lane 3 keeps a placeholder"), unfilled.stderr);
+	checkPlan(validPlan.replace(lane, "- [ ] Lane 3. Save `lane-3.png`. Pass when `<zstack>/skills/swarm/SKILL.md` is followed."), 0);
 });

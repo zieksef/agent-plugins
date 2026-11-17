@@ -88,7 +88,7 @@ for (const l of lines) {
 	else if (sections.length) sections.at(-1).body.push(l);
 }
 const find = (title) => sections.find((s) => s.title === title);
-const bodyText = (s) => s.body.map((l) => l.text).join("\n");
+const proseText = (ls) => ls.filter((l) => !l.code).map((l) => l.text).join("\n");
 const boxes = (ls) => ls.filter((l) => !l.code && BOX.test(l.text)).map((l) => ({ n: l.n, text: l.text.match(BOX)[1] }));
 
 const h1 = lines.findIndex((l) => !l.code && l.text.startsWith("# "));
@@ -99,7 +99,7 @@ if (h1 !== -1 && howToRead) {
 	const intro = lines.slice(h1 + 1).filter((l) => l.n < howToRead.n && l.text.trim() !== "");
 	if (intro.length >= 10) fail(lines[h1].n, `intro is ${intro.length} lines, under ten required`);
 	for (const marker of HOW_TO_READ_MARKERS) {
-		if (!bodyText(howToRead).includes(marker)) fail(howToRead.n, `How to read this lacks "${marker}"`);
+		if (!proseText(howToRead.body).includes(marker)) fail(howToRead.n, `How to read this lacks "${marker}"`);
 	}
 }
 
@@ -114,7 +114,7 @@ else {
 		else cursor = at + 1;
 	}
 	for (const marker of PROGRAM_MARKERS) {
-		if (!bodyText(program).includes(marker)) fail(program.n, `Program checklist lacks "${marker}"`);
+		if (!proseText(program.body).includes(marker)) fail(program.n, `Program checklist lacks "${marker}"`);
 	}
 }
 
@@ -163,6 +163,8 @@ for (const pr of prSections) {
 			if (!lane.m) fail(lane.n, `${pr.title}: live box is not a lane`);
 			else if (!/Save `[^`]+`/.test(lane.text)) fail(lane.n, `${pr.title}: lane ${lane.m[1]} names no screenshot`);
 			else if (!lane.text.includes("Pass when")) fail(lane.n, `${pr.title}: lane ${lane.m[1]} has no pass predicate`);
+			// The playbook tells the author to keep <zstack> as written.
+			else if (/<[A-Za-z][^<>]*>/.test(lane.text.replaceAll("<zstack>", ""))) fail(lane.n, `${pr.title}: lane ${lane.m[1]} keeps a placeholder`);
 		}
 	}
 
@@ -178,7 +180,7 @@ for (const pr of prSections) {
 		if (gate.rest.startsWith("None.")) {
 			if (gateBoxes.length) fail(gate.n, `${pr.title}: Review gate says None but has boxes`);
 		} else {
-			const text = gate.lines.map((l) => l.text).join("\n");
+			const text = proseText(gate.lines);
 			if (gateBoxes.length === 0) fail(gate.n, `${pr.title}: Review gate has no box`);
 			for (const word of ["screenshot", "video", "operator"]) {
 				if (!text.includes(word)) fail(gate.n, `${pr.title}: Review gate lacks "${word}"`);
