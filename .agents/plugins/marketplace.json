@@ -5,7 +5,7 @@
       "name": "zstack",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/zstack"
       }
     }
   ]
