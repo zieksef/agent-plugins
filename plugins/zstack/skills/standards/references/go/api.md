@@ -1,8 +1,6 @@
 # Go API
 
-Read [API](../api.md) first. It holds the rules that do not depend on the language. This file adds what is specific to Go.
-
-A request struct declares its validation rules in struct tags.
+A request struct declares its validation rules in struct tags. Do not hand-write `if` and `else` checks for them.
 
 ```go
 type CreateCardReq struct {
@@ -11,6 +9,4 @@ type CreateCardReq struct {
 }
 ```
 
-The reference lint config checks that JSON tags use `snake_case`.
-
-A money field is a `decimal.Decimal`, which serializes as a JSON string.
+A money field is a `decimal.Decimal`, which serializes as a JSON string. Do not use a float, because a float loses precision.

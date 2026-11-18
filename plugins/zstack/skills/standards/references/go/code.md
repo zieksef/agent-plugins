@@ -1,24 +1,5 @@
 # Go code
 
-## Linted rules
-
-The [reference config](../../assets/golangci.yml) enforces these rules, along with a large set of general checks. Write code that passes it.
-
-- Each file has one `import (...)` block, even for a single import.
-- Package-level `const` and `var` declarations sit in `const (...)` and `var (...)` groups, even a single declaration.
-- Every function parameter names its type. Write `func Move(x int, y int)`, not `func Move(x, y int)`.
-- JSON tags use `snake_case`.
-- No `init` function.
-- A `slog` call passes typed attributes, such as `slog.String("card_id", id)`, not alternating keys and values. It uses the `Context` variant, such as `slog.InfoContext`, when a `context.Context` is in scope.
-
-## Files
-
-Do not create `types.go` by default. Put a type in the file named for its domain or its job. Use a catch-all file name only when a group of types shares one clear subject and no domain file name fits better.
-
-## Type declarations
-
-Do not define a `type` that adds no meaning. Declare each `struct` and each `interface` on its own. Do not group them in `type (...)`.
-
 ## Error variables
 
 An error variable is named `err` while it is the only error that its scope can see. When a scope can see two or more, name each one for its action, such as `loadUserErr` or `newPoolErr`, so that no two errors share a name.
@@ -66,33 +47,11 @@ if err := register(pool); err != nil {
 
 The linter catches the shadowing but not the naming. Before you hand off, read every error declaration in your diff against this rule.
 
-## Construction
+## Declarations
 
-For an object with complex setup, use the options pattern. Pass the required parameters directly, and add optional settings through `Option` values.
+Do not create `types.go` by default. Put a type in the file named for its domain or its job. Use a catch-all file name only when a group of types shares one clear subject and no domain file name fits better.
 
-## Setup
-
-Do not write an `init` function. Put setup in an explicit function that `main` or the startup code calls. When the setup can fail, the function returns the error, so that the caller can handle it.
-
-```go
-// Bad. init connects to the database, so a failure can only panic and no caller can handle it.
-var (
-	db *gorm.DB
-)
-
-func init() {
-	var err error
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-}
-
-// Good. The function returns the error to main.
-func NewDB(dsn string) (*gorm.DB, error) {
-	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
-}
-```
+Do not define a `type` that adds no meaning. Declare each `struct` and each `interface` on its own. Do not group them in `type (...)`.
 
 ## Dependencies
 
@@ -120,15 +79,6 @@ type CardService struct {
 func NewCardService(db *gorm.DB, rdb *redis.Client, smtp SMTPConfig) *CardService {
 	return &CardService{db: db, rdb: rdb, smtp: smtp}
 }
-```
-
-```go
-// main or the startup code reads conf and builds the parameters of each package.
-db, err := NewDB(conf.DB.DSN)
-if err != nil {
-	log.Fatal(err)
-}
-svc := NewCardService(db, rdb, SMTPConfig{Host: conf.SMTP.Host, Port: conf.SMTP.Port})
 ```
 
 The infrastructure package that owns a shared instance also provides a getter, such as `db.DB()`, `redis.Client()`, or `conf.Config()`. Use the getter where a constructor cannot deliver the dependency, such as a method that a library calls on a data type. The package keeps the variable private, so no outside code can replace the instance.
@@ -164,33 +114,31 @@ var (
 )
 ```
 
-## Logger
+### Logger
 
-Follow the guidance of the logging library, and never create a mutable global logger of your own, such as `var Lg *SomeLogger`.
+For the logger, follow the guidance of the logging library, and never create a mutable global logger of your own, such as `var Lg *SomeLogger`.
 
-With `log/slog`, use the default logger. Set it once in `main`, and call the package-level functions. Pass the context when one is in scope, so that a handler can add request-scoped fields such as a trace ID.
+- With `log/slog`, use the default logger. Set it once in `main`, and call the package-level functions. Pass the context when one is in scope, so that a handler can add request-scoped fields such as a trace ID.
+- With zap, inject the `*zap.Logger` through constructors like any other dependency. The zap authors provide the global `zap.L()` only to ease migration, and they advise against it.
 
-```go
-// Set once in main.
-slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+## Format and lint
 
-// Anywhere in business code.
-slog.InfoContext(ctx, "card created", slog.String("card_id", card.CardID))
+Format and lint your change with these two commands.
+
+```bash
+golangci-lint fmt <the Go files you changed>
+golangci-lint run --new-from-merge-base=<base branch> ./...
 ```
 
-With zap, inject the `*zap.Logger` through constructors like any other dependency. The zap authors provide the global `zap.L()` only to ease migration, and they advise against it.
+Give `fmt` the files you changed. Without a path, it reformats every Go file in the repository. `--new-from-merge-base` reports the issues in everything the branch changed, committed or not, and leaves old code out. A bare `golangci-lint run` reports nothing about committed work when the config sets `new-from-rev: HEAD`.
 
-```go
-type CardService struct {
-	logger *zap.Logger
-}
+The config that `golangci-lint config path` finds decides what the linter checks. When it finds none, name [the reference config](../../assets/go/golangci.yml) in your reply as an option, and add it only when the user accepts. Never overwrite a config that exists.
 
-func NewCardService(logger *zap.Logger) *CardService {
-	return &CardService{logger: logger}
-}
+The reference config enforces the rules below, along with a large set of general checks. Write code that passes it. Because the linter checks these rules, this file states each one once and gives no examples.
 
-func (s *CardService) Create(ctx context.Context, card Card) error {
-	s.logger.Info("card created", zap.String("card_id", card.CardID))
-	return nil
-}
-```
+- Each file has one `import (...)` block, even for a single import.
+- Package-level `const` and `var` declarations sit in `const (...)` and `var (...)` groups, even a single declaration.
+- Every function parameter names its type. Write `func Move(x int, y int)`, not `func Move(x, y int)`.
+- JSON tags use `snake_case`.
+- No `init` function. Put setup in an explicit function that `main` or the startup code calls. When the setup can fail, the function returns the error.
+- A `slog` call passes typed attributes, such as `slog.String("card_id", id)`, not alternating keys and values. It uses the `Context` variant, such as `slog.InfoContext`, when a `context.Context` is in scope.

@@ -29,38 +29,6 @@ func (Payment) TableName() string { return "payment" }
 - Soft delete uses `gorm.DeletedAt`.
 - GORM's `autoUpdateTime` and the database's `ON UPDATE` both maintain `updated_at`, and they do not conflict. GORM sets the value on its own writes, and that value wins.
 
-## Enum constants
-
-Go gives an unset integer the value 0, which is why 0 is not a valid enum value.
-
-```go
-// Bad
-const (
-	StatusPending = 0
-	StatusSuccess = 1
-)
-
-// Good
-const (
-	StatusPending    = 100
-	StatusProcessing = 101
-	StatusSuccess    = 200
-	StatusFailed     = 300
-)
-```
-
-```go
-// Bad
-const (
-	CardSchemaVISA = "VISA"
-)
-
-// Good
-const (
-	CardSchemaVisa = "visa"
-)
-```
-
 ## Repositories and transactions
 
 A repository holds a `*gorm.DB` and implements its own interface. The interface must have a `WithTx` method that returns a repository of the same type, bound to the transaction handle.
@@ -70,22 +38,7 @@ A repository holds a `*gorm.DB` and implements its own interface. The interface 
 - Inside a transaction, use only the repository that `WithTx(tx)` returned. The original repository uses a connection outside the transaction, so neither a commit nor a rollback reaches its writes.
 
 ```go
-// Bad. One repository per table, so a service combines three of them for one payment case.
-type PaymentRepo interface {
-	Create(ctx context.Context, p *Payment) error
-}
-
-type PaymentLogRepo interface {
-	Create(ctx context.Context, l *PaymentLog) error
-}
-
-type PaymentRefundRepo interface {
-	Create(ctx context.Context, r *PaymentRefund) error
-}
-```
-
-```go
-// Good. One repository holds the operations of the payment domain.
+// One repository holds the operations of the payment domain.
 type PaymentRepository interface {
 	GetByID(ctx context.Context, id string) (*Payment, error)
 	Create(ctx context.Context, p *Payment) error
