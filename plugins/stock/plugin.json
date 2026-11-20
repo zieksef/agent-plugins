@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "stock",
+  "version": "0.1.0",
+  "description": "Stock market workflows for Claude Code and Codex.",
+  "license": "MIT",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "stock",
+        "shortDescription": "Stock market workflows",
+        "developerName": "zieksef",
+        "category": "Finance",
+        "logo": "./assets/logo.png",
+        "websiteURL": "https://github.com/zieksef/agent-plugins"
+      }
+    }
+  }
+}
