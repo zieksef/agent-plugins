@@ -4,180 +4,244 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>盘前简报</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <style>
+  /* 布局：灰色侧边栏 + 白色正文。只有摘要卡、多空两栏和图表用卡片，其余内容用细线分隔 */
   :root {
-    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f3f5f7; --border: #d9dee3;
-    --text: #1f2328; --muted: #5d6670; --accent: #0969da; --accent-soft: #ddf4ff;
-    --warn: #9a6700; --warn-soft: #fff8c5; --flat: #6e7781;
+    --bg: #ffffff; --side: #f4f6f9; --tint: #f6f8fb; --line: #e4e8ee; --line-strong: #cdd5df;
+    --text: #17202a; --muted: #5a6572; --faint: #8b95a1;
+    --accent: #1f5fd1; --accent-soft: #e9f0fd;
+    --warn: #9a6100; --warn-soft: #fff3d6; --flat: #6e7781;
     /* 默认绿涨红跌：绿色是涨和利多，红色是跌和利空。侧边栏按钮切换到红涨绿跌 */
-    --up: #1a7f37; --up-soft: #dafbe1; --down: #cf222e; --down-soft: #ffebe9;
+    --up: #16803c; --up-soft: #e4f5e9; --down: #cc2f2f; --down-soft: #fdeceb;
+    --font-text: "Inter", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+    --font-display: "Space Grotesk", "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   }
-  :root[data-colors="cn"] { --up: #cf222e; --up-soft: #ffebe9; --down: #1a7f37; --down-soft: #dafbe1; }
+  :root[data-colors="cn"] { --up: #cc2f2f; --up-soft: #fdeceb; --down: #16803c; --down-soft: #e4f5e9; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-  }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.75 var(--font-text); -webkit-font-smoothing: antialiased; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  p { margin: 8px 0; }
-  .muted { color: var(--muted); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  p { margin: 0; }
+  ul, ol { margin: 0; padding: 0; list-style: none; }
   .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
   .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--flat); }
+  .empty { color: var(--faint); font-size: 14px; padding: 12px 0; }
 
-  .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+  /* 正文里的数字、日期和引用 */
+  .rich p + p { margin-top: 10px; }
+  .n { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .d { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .cite { color: var(--faint); font-size: 0.88em; }
+  .cite .n, .cite .d { font-weight: inherit; color: inherit; }
+
+  /* ---------- 骨架 ---------- */
+  .layout { display: grid; grid-template-columns: 228px minmax(0, 1fr); min-height: 100vh; }
   .sidebar {
-    position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--panel);
-    border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 2px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--side);
+    border-right: 1px solid var(--line); padding: 24px 12px; display: flex; flex-direction: column; gap: 2px;
   }
-  .brand { padding: 0 10px 14px; }
-  .brand .title { font-weight: 700; font-size: 17px; }
-  .brand .meta { color: var(--muted); font-size: 12px; }
+  .brand { padding: 0 10px 18px; }
+  .brand .title { font: 700 17px/1.3 var(--font-display); }
+  .brand .meta { color: var(--faint); font-size: 12.5px; }
   .nav-item {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 8px 10px; border-radius: 8px; color: var(--text); white-space: nowrap;
+    padding: 7px 10px; border-radius: 8px; color: var(--text); white-space: nowrap;
   }
-  .nav-item:hover { background: var(--panel-2); text-decoration: none; }
-  .nav-item.active { background: var(--accent-soft); color: var(--accent); }
-  .nav-item .label { font-weight: 600; }
+  .nav-item:hover { background: var(--line); text-decoration: none; }
+  .nav-item.active { background: var(--bg); box-shadow: 0 0 0 1px var(--line); }
+  .nav-item .label { font: 600 14.5px var(--font-display); letter-spacing: 0.01em; }
   .nav-item .side { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-  .nav-sep { height: 1px; background: var(--border); margin: 6px 10px; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
-  .nav-foot { margin-top: auto; padding: 14px 4px 0; }
+  .nav-sep { height: 1px; background: var(--line); margin: 8px 10px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+  .nav-foot { margin-top: auto; padding: 16px 2px 0; }
   .toggle {
-    width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
-    color: var(--text); font: inherit; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg);
+    color: var(--text); font: inherit; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   }
   .toggle:hover { border-color: var(--accent); }
-  .swatch { display: inline-flex; gap: 3px; align-items: center; }
+  .swatch { display: inline-flex; gap: 3px; }
   .swatch i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
 
-  main { padding: 28px 36px 72px; max-width: 1200px; width: 100%; }
-  .page-head h1 { margin: 0; font-size: 26px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .page-head h1 .name { font-size: 15px; font-weight: 400; color: var(--muted); }
-  .page-head .meta { color: var(--muted); margin-top: 4px; font-size: 13px; }
-  .head-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .quote { display: flex; gap: 32px; margin: 14px 0 0; flex-wrap: wrap; }
-  .quote .label { color: var(--muted); font-size: 12px; }
-  .quote .big { font-size: 22px; font-weight: 600; margin-right: 6px; }
-  .key-points { margin-top: 16px; }
-  .key-points ul { margin: 4px 0 0; padding-left: 18px; }
-  .disclaimer { margin-top: 48px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+  main { padding: 36px 44px 96px; max-width: 1180px; width: 100%; min-width: 0; }
+  .page-head { padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+  .page-head h1 { margin: 0; font: 700 36px/1.15 var(--font-display); letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; text-wrap: balance; }
+  .page-head h1 .name { font: 400 16px var(--font-text); color: var(--muted); letter-spacing: 0; }
 
-  .section { margin-top: 40px; }
-  .section > h2 {
-    font-size: 20px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--text);
-    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  .section { margin-top: 56px; }
+  .section-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .section-head h2 { margin: 0; font: 700 28px/1.25 var(--font-display); text-wrap: balance; }
+  .section-head .sub { color: var(--muted); font-size: 14px; }
+  .block { margin-top: 36px; }
+  .block-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .block-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .block-head small { color: var(--faint); font-size: 12.5px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--faint); }
+  .sources { font-size: 12.5px; color: var(--faint); margin-top: 6px; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; font-size: 13px; color: var(--faint); }
+
+  /* ---------- 标签 ---------- */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px; padding: 1px 10px; border-radius: 999px;
+    font-size: 12.5px; line-height: 20px; font-weight: 500; background: var(--tint); color: var(--muted); white-space: nowrap;
   }
-  .section > h2 .no { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
-  h2 small, h3 small { color: var(--muted); font-weight: 400; font-size: 13px; }
-  h3 { font-size: 16px; margin: 26px 0 10px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .label { color: var(--muted); font-size: 12px; }
-  .caption { font-size: 12.5px; color: var(--muted); margin: 6px 0 4px; }
-  .callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 12px; }
-
-  .badge {
-    display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; line-height: 20px;
-    border: 1px solid var(--border); color: var(--muted); background: var(--panel); white-space: nowrap;
-  }
-  .badge.bull { color: var(--up); border-color: var(--up); background: var(--up-soft); }
-  .badge.bear { color: var(--down); border-color: var(--down); background: var(--down-soft); }
-  .badge.neutral { color: var(--flat); }
-  .badge.caution { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
-  .badge.official { color: var(--accent); border-color: var(--accent); }
-  .badge.rumor { color: var(--warn); border-color: var(--warn); }
-  .badge.tendency { font-size: 14px; padding: 2px 14px; font-weight: 600; }
-  .nav-item .badge { font-size: 11px; padding: 0 7px; line-height: 18px; }
-
+  .pill.bull { background: var(--up-soft); color: var(--up); }
+  .pill.bear { background: var(--down-soft); color: var(--down); }
+  .pill.caution { background: var(--warn-soft); color: var(--warn); }
+  .pill.official { background: var(--accent-soft); color: var(--accent); }
+  .pill.rumor { background: var(--warn-soft); color: var(--warn); }
+  .pill.lg { font-size: 15px; line-height: 24px; padding: 2px 14px; font-weight: 600; }
+  .nav-item .pill { font-size: 11.5px; line-height: 18px; padding: 0 8px; }
   .tag {
-    display: inline-block; font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: 4px;
-    border: 1px solid var(--border); color: var(--muted); white-space: nowrap;
+    display: inline-block; padding: 0 7px; border-radius: 4px; font-size: 12px; line-height: 20px;
+    border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap;
   }
-  .tag.level { border-color: var(--accent); color: var(--accent); }
-  .tag.priced-none { background: var(--text); border-color: var(--text); color: #fff; }
+  .tag.level { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+  .tag.priced-none { background: var(--text); border-color: var(--text); color: var(--bg); }
   .tag.priced-part { border-color: var(--text); color: var(--text); }
-  .tag.priced-full { background: var(--panel-2); }
-  .bull .tag.grade-high { background: var(--up); border-color: var(--up); color: #fff; }
+  .tag.priced-full { background: var(--tint); border-color: var(--line); color: var(--faint); }
+  .bull .tag.grade-high { background: var(--up); border-color: var(--up); color: var(--bg); }
   .bull .tag.grade-mid { background: var(--up-soft); border-color: var(--up); color: var(--up); }
   .bull .tag.grade-low { border-color: var(--up-soft); color: var(--up); }
-  .bear .tag.grade-high { background: var(--down); border-color: var(--down); color: #fff; }
+  .bear .tag.grade-high { background: var(--down); border-color: var(--down); color: var(--bg); }
   .bear .tag.grade-mid { background: var(--down-soft); border-color: var(--down); color: var(--down); }
   .bear .tag.grade-low { border-color: var(--down-soft); color: var(--down); }
-
-  .impact { display: inline-block; padding: 1px 9px; border-radius: 4px; font-size: 12.5px; line-height: 20px; margin: 2px 4px 2px 0; border: 1px solid transparent; }
+  .impact { display: inline-block; padding: 0 9px; border-radius: 4px; font-size: 12.5px; line-height: 22px; border: 1px solid transparent; white-space: nowrap; }
   .impact.pos { background: var(--up-soft); color: var(--up); border-color: var(--up); }
   .impact.neg { background: var(--down-soft); color: var(--down); border-color: var(--down); }
-  .impact.neu { background: var(--panel-2); color: var(--muted); border-color: var(--border); }
+  .impact.neu { background: var(--tint); color: var(--muted); border-color: var(--line-strong); }
   .impact.market { font-weight: 700; }
-  .impacts { margin-top: 6px; }
+  .impacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .importance { display: inline-block; padding: 0 9px; border-radius: 4px; font-size: 12.5px; line-height: 22px; white-space: nowrap; }
+  .importance.high { background: var(--warn); color: var(--bg); }
+  .importance.mid { background: var(--warn-soft); color: var(--warn); }
+  .importance.low { background: var(--tint); color: var(--faint); }
 
+  /* ---------- 摘要卡 ---------- */
+  .brief { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .brief-top { padding: 22px 26px; background: var(--tint); display: grid; gap: 12px; }
+  .brief-top .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .brief-reason { font-size: 16px; }
+  .brief-caution { display: flex; gap: 10px; align-items: baseline; color: var(--warn); font-size: 14px; }
+  .brief-caution .pill { flex: none; }
+  .brief-keys { padding: 20px 26px; border-top: 1px solid var(--line); }
+  .keys { display: grid; gap: 10px; margin-top: 10px; counter-reset: key; }
+  .keys li { display: grid; grid-template-columns: 26px minmax(0, 1fr); font-size: 15.5px; }
+  .keys li::before { counter-increment: key; content: counter(key); font: 600 16px/1.75 var(--font-display); color: var(--accent); }
+  .brief-scenarios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+  .scenario { padding: 20px 26px; min-width: 0; }
+  .scenario + .scenario { border-left: 1px solid var(--line); }
+  .scenario-title { font-weight: 600; margin-bottom: 10px; }
+  .scenario.bull .scenario-title { color: var(--up); }
+  .scenario.bear .scenario-title { color: var(--down); }
+  .scenario ul { display: grid; gap: 14px; }
+  .scenario .watch { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+  .scenario .watch .tag { flex: none; }
+
+  /* ---------- 列表 ---------- */
+  .rows > * { border-bottom: 1px solid var(--line); }
+  .rows > *:first-child { border-top: 1px solid var(--line); }
+  .move { display: grid; grid-template-columns: 132px 92px minmax(0, 1fr) auto; gap: 18px; align-items: baseline; padding: 14px 0; }
+  .move .period { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .move .pct { font: 600 17px var(--font-display); font-variant-numeric: tabular-nums; }
+  .pattern { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 18px; padding: 14px 0; }
+  .pattern .name { font-weight: 600; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .pattern .basis { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+  .news { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 18px; padding: 14px 0; }
+  .news .date { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .news .weekday { color: var(--faint); font-size: 12px; }
+  .news .title { font-weight: 600; }
+  .news .detail { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .news .meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; align-self: start; font-size: 13px; }
+  .feed-group + .feed-group { margin-top: 22px; }
+  .feed-group .eyebrow { margin-bottom: 6px; }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 36px; }
+  .facts.single { grid-template-columns: minmax(0, 1fr); }
+  .fact { padding: 14px 0; border-top: 1px solid var(--line); min-width: 0; }
+  .fact-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .fact-text { font-size: 14.5px; }
+  .callout { background: var(--accent-soft); padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; }
+
+  /* ---------- 财报拆解 ---------- */
+  .sub-head { margin: 26px 0 10px; }
+  .block-head + .sub-head { margin-top: 4px; }
+  .scorecard-wrap { overflow-x: auto; }
+  .scorecard { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .scorecard th { text-align: right; font-size: 12.5px; color: var(--faint); font-weight: 500; padding: 8px 14px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+  .scorecard td { text-align: right; padding: 11px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .scorecard th:first-child, .scorecard td:first-child { text-align: left; padding-left: 0; }
+  .scorecard th:last-child, .scorecard td:last-child { padding-right: 0; }
+  .scorecard td.metric { font-weight: 600; white-space: normal; min-width: 7em; }
+  .scorecard td.actual { font: 600 16px var(--font-display); }
+  .scorecard td.src { font-size: 12.5px; }
+  .eitem { padding: 18px 0; }
+  .eitem-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .eitem-name { font-size: 16px; font-weight: 600; }
+  .eitem-summary { margin-top: 4px; font-size: 15px; }
+  .views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .view { border-radius: 10px; padding: 12px 16px; font-size: 14px; min-width: 0; }
+  .view.bull { background: color-mix(in srgb, var(--up-soft) 60%, var(--bg)); }
+  .view.bear { background: color-mix(in srgb, var(--down-soft) 60%, var(--bg)); }
+  .view-label { font-size: 12.5px; font-weight: 600; margin-bottom: 4px; }
+  .view.bull .view-label { color: var(--up); }
+  .view.bear .view-label { color: var(--down); }
+
+  /* ---------- 图表与指标 ---------- */
+  .chart-box { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
   .chart { width: 100%; height: 520px; }
   .chart.compare { height: 300px; }
-  .chart-missing { display: flex; align-items: center; justify-content: center; color: var(--muted); }
-
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
-  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-  .tile .value { font-size: 18px; font-weight: 600; margin: 2px 0; }
+  .chart-missing { display: flex; align-items: center; justify-content: center; color: var(--faint); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .tile { background: var(--tint); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .tile .label { color: var(--muted); font-size: 12.5px; }
+  .tile .value { font: 600 19px/1.4 var(--font-display); margin: 2px 0; font-variant-numeric: tabular-nums; }
   .tile .verdict { font-size: 13px; }
-  .tile .plain { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tile .plain { color: var(--faint); font-size: 12px; line-height: 1.6; margin-top: 6px; }
+  .index-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 16px; }
 
-  .table-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  th { color: var(--muted); font-weight: 500; font-size: 12.5px; white-space: nowrap; background: var(--panel-2); }
-  td.nowrap { white-space: nowrap; }
-  td.item { font-weight: 600; white-space: nowrap; }
-  .item-title { font-weight: 600; }
-  .item-detail { color: var(--muted); font-size: 13px; }
-  .sources { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
-
-  .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-  .scenario h4 { margin: 0 0 8px; font-size: 15px; }
-  .scenario.bull { border-top: 3px solid var(--up); }
-  .scenario.bear { border-top: 3px solid var(--down); }
-  .scenario ul { margin: 0; padding-left: 18px; }
-  .scenario li { margin: 6px 0; }
-  .tendency-card .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .tendency-card .caution-line { margin-top: 8px; color: var(--warn); }
-
-  .case-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-  .case { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
-  .case.bull { border-top: 4px solid var(--up); }
-  .case.bear { border-top: 4px solid var(--down); }
-  .case-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .case-title { font-size: 19px; font-weight: 700; }
+  /* ---------- 多空对照 ---------- */
+  .case-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  .case { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+  .case-head { padding: 14px 22px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .case.bull .case-head { background: var(--up-soft); }
+  .case.bear .case-head { background: var(--down-soft); }
+  .case-title { font: 700 21px var(--font-display); }
   .case.bull .case-title, .case.bull .rank { color: var(--up); }
   .case.bear .case-title, .case.bear .rank { color: var(--down); }
-  .case h3 { margin-top: 20px; }
-  .top-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 6px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .top-item:last-child { border-bottom: 0; }
-  .top-item .rank { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .case-head .sub { color: var(--muted); font-size: 13.5px; }
+  .case-body { padding: 4px 22px 22px; }
+  .case-body .block { margin-top: 26px; }
+  .top-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 6px; padding: 10px 0; }
+  .top-item .rank { font: 700 24px/1.2 var(--font-display); }
   .top-item .title { font-weight: 600; margin-right: 6px; }
-  .matrix { display: grid; grid-template-columns: 64px repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 12.5px; }
-  .matrix > div { padding: 6px 8px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .top-item .detail { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .matrix { display: grid; grid-template-columns: 64px repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 12.5px; line-height: 1.5; }
+  .matrix > div { padding: 6px 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0; }
   .matrix > div:nth-child(4n) { border-right: 0; }
   .matrix > div:nth-last-child(-n + 4) { border-bottom: 0; }
-  .matrix .head { color: var(--muted); background: var(--panel-2); }
+  .matrix .head { color: var(--muted); background: var(--tint); }
   .matrix .cell { min-height: 44px; }
   .bull .matrix .cell.weight-4 { background: var(--up-soft); }
-  .bull .matrix .cell.weight-3 { background: color-mix(in srgb, var(--up-soft) 45%, var(--panel)); }
+  .bull .matrix .cell.weight-3 { background: color-mix(in srgb, var(--up-soft) 45%, var(--bg)); }
   .bear .matrix .cell.weight-4 { background: var(--down-soft); }
-  .bear .matrix .cell.weight-3 { background: color-mix(in srgb, var(--down-soft) 45%, var(--panel)); }
-  .chip { display: block; line-height: 1.45; margin: 2px 0; }
-  .chip b { color: var(--muted); margin-right: 4px; font-weight: 600; }
-  .point { padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .point:last-child { border-bottom: 0; }
+  .bear .matrix .cell.weight-3 { background: color-mix(in srgb, var(--down-soft) 45%, var(--bg)); }
+  .chip { display: block; margin: 2px 0; }
+  .chip b { color: var(--faint); margin-right: 4px; font-weight: 600; }
+  .caption { font-size: 12.5px; color: var(--faint); margin-top: 8px; line-height: 1.6; }
+  .point { padding: 14px 0; }
   .point .title { font-weight: 600; }
-  .point .title b { color: var(--muted); margin-right: 6px; }
-  .point .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
-  .falsifier { padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .falsifier:last-child { border-bottom: 0; }
+  .point .title b { color: var(--faint); margin-right: 6px; font-weight: 600; }
+  .point .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .point .evidence { font-size: 14px; }
+  .falsifier { padding: 12px 0; }
   .falsifier .signal { font-weight: 600; }
-  .falsifier .check { font-size: 13px; color: var(--muted); }
-  ol.refs { margin: 0; padding-left: 22px; font-size: 13.5px; }
+  .falsifier .check { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
 
   @media (max-width: 1080px) {
     .case-grid { grid-template-columns: minmax(0, 1fr); }
@@ -186,13 +250,25 @@
     .layout { grid-template-columns: minmax(0, 1fr); }
     .sidebar {
       height: auto; flex-direction: row; align-items: center; overflow-x: auto; z-index: 10;
-      border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 16px; gap: 4px;
+      border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 16px; gap: 4px;
     }
     .brand, .nav-sep { display: none; }
     .nav-item, .nav-foot { flex: none; }
     .nav-foot { margin: 0 0 0 auto; padding: 0; }
-    main { padding: 20px 16px 56px; }
+    main { padding: 24px 16px 64px; }
     .chart { height: 440px; }
+    .facts { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .brief-top, .brief-keys, .scenario { padding-left: 18px; padding-right: 18px; }
+    .brief-scenarios { grid-template-columns: minmax(0, 1fr); }
+    .scenario + .scenario { border-left: 0; border-top: 1px solid var(--line); }
+    .move { grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; }
+    .move .text { grid-column: 1 / -1; }
+    .pattern, .news { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .views { grid-template-columns: minmax(0, 1fr); }
+    .news .meta { justify-content: flex-start; }
+    .case-head, .case-body { padding-left: 16px; padding-right: 16px; }
   }
 </style>
 </head>
@@ -213,12 +289,15 @@
   const MACRO_ROUTE = 'macro';
   const SCHEME_KEY = 'premarket-color-scheme';
   const SCHEME_LABEL = { us: '绿涨红跌', cn: '红涨绿跌' };
+  const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const CHART_FONT = 'Inter, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
   const CATEGORY_ORDER = ['运营事件与日程', '合同与合作', '官方披露', '管理层言论', '分析师动作', '资金面', '监管与法律', '竞争对手与上下游'];
   const GRADES = ['高', '中', '低'];
   const PRICED = ['未计价', '部分', '已计价'];
   const PRICED_LABEL = { '未计价': '未计价', '部分': '部分计价', '已计价': '已计价' };
   const PRICED_CLASS = { '未计价': 'priced-none', '部分': 'priced-part', '已计价': 'priced-full' };
   const GRADE_CLASS = { '高': 'grade-high', '中': 'grade-mid', '低': 'grade-low' };
+  const IMPORTANCE_CLASS = { '高': 'high', '中': 'mid', '低': 'low' };
   const DIRECTION_CLASS = { '利多': 'pos', '利空': 'neg', '中性': 'neu' };
   const SIDES = {
     bull: {
@@ -234,6 +313,18 @@
       falsifierNote: '出现这些信号，说明上面的利空不成立',
     },
   };
+  // 正文里要单独排版的片段，按顺序匹配：带日期的括号引用、带符号的涨跌幅、金额、日期、百分比和其他数字
+  const TOKEN_PATTERNS = [
+    ['cite', '[（(][^（）()]*?\\d{4}-\\d{2}-\\d{2}[^（）()]*?[）)]'],
+    ['signed', '(?<![\\w.$])[+\\-−]\\d[\\d,]*(?:\\.\\d+)?%'],
+    ['number', '\\$\\d[\\d,]*(?:\\.\\d+)?(?:[KMBT](?![A-Za-z]))?'],
+    ['date', '\\d{4}-\\d{2}-\\d{2}'],
+    ['number', '\\d[\\d,]*(?:\\.\\d+)?%'],
+    ['number', '(?<![\\w.])\\d[\\d,]*\\.\\d+(?![\\w%])'],
+    ['number', '(?<![\\w.,])\\d{1,3}(?:,\\d{3})+(?![\\w%.])'],
+    ['date', '(?<![\\w.\\-])(?:0?[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])(?![\\w%])'],
+  ];
+  const TOKEN_RE = new RegExp(TOKEN_PATTERNS.map(([, pattern]) => '(' + pattern + ')').join('|'), 'g');
 
   let colors = {};
   let charts = [];
@@ -247,10 +338,48 @@
       if (key === 'class') node.className = value; else node.setAttribute(key, value);
     }
     for (const child of children.flat(Infinity)) {
-      if (child === null || child === undefined || child === false) continue;
+      if (child === null || child === undefined || child === false || child === '') continue;
       node.append(child instanceof Node ? child : document.createTextNode(String(child)));
     }
     return node;
+  }
+  function inline(text) {
+    const source = String(text || '');
+    const parts = [];
+    let last = 0;
+    for (const match of source.matchAll(TOKEN_RE)) {
+      if (match.index > last) parts.push(source.slice(last, match.index));
+      const kind = TOKEN_PATTERNS[match.slice(1).findIndex((group) => group !== undefined)][0];
+      const token = match[0];
+      const className = kind === 'cite' ? 'cite' : kind === 'date' ? 'd'
+        : kind === 'signed' ? 'n ' + (/^[-−]/.test(token) ? 'down' : 'up') : 'n';
+      parts.push(el('span', { class: className }, token));
+      last = match.index + token.length;
+    }
+    if (last < source.length) parts.push(source.slice(last));
+    return parts;
+  }
+  const PARAGRAPH_MIN_CHARS = 90;
+  const TAIL_MERGE_CHARS = 30;
+  // 按换行分段；没有换行的长文本按句号攒够约 90 字分一段，太短的末尾并进上一段
+  function paragraphsOf(text) {
+    const source = String(text || '').trim();
+    if (!source) return [];
+    if (source.includes('\n')) return source.split(/\n+/).map((paragraph) => paragraph.trim()).filter(Boolean);
+    const paragraphs = [];
+    let current = '';
+    for (const sentence of source.match(/[^。！？]+[。！？]?/g) || [source]) {
+      current += sentence;
+      if (current.length >= PARAGRAPH_MIN_CHARS) { paragraphs.push(current); current = ''; }
+    }
+    if (current && paragraphs.length && current.length < TAIL_MERGE_CHARS) paragraphs[paragraphs.length - 1] += current;
+    else if (current) paragraphs.push(current);
+    return paragraphs;
+  }
+  function rich(text, className) {
+    const paragraphs = paragraphsOf(text);
+    if (!paragraphs.length) return null;
+    return el('div', { class: 'rich' + (className ? ' ' + className : '') }, paragraphs.map((paragraph) => el('p', null, inline(paragraph))));
   }
   function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -262,50 +391,53 @@
   function pctNode(value) { return el('span', { class: 'num ' + signClass(value) }, pct(value)); }
   function isHttpUrl(url) { return typeof url === 'string' && /^https?:\/\//i.test(url); }
   function sourceLink(url, name) {
-    if (!isHttpUrl(url)) return el('span', { class: 'muted' }, name || MISSING);
+    if (!isHttpUrl(url)) return name ? el('span', { class: 'faint' }, name) : null;
     return el('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, name || '来源');
   }
   function sourceLine(sources) {
-    if (!sources || !sources.length) return null;
+    const links = (sources || []).map((source) => sourceLink(source.url, source.name || source.url)).filter(Boolean);
+    if (!links.length) return null;
     const parts = [];
-    sources.forEach((source, index) => { if (index) parts.push(' · '); parts.push(sourceLink(source.url, source.name || source.url)); });
+    links.forEach((link, index) => { if (index) parts.push(' · '); parts.push(link); });
     return el('div', { class: 'sources' }, '来源：', parts);
   }
-  function credibilityBadge(value) {
+  function credibilityPill(value) {
     const kind = value === '官方确认' ? 'official' : value === '传闻' ? 'rumor' : '';
-    return el('span', { class: 'badge ' + kind }, value || MISSING);
+    return el('span', { class: 'pill ' + kind }, value || MISSING);
   }
-  function tendencyBadge(value, compact) {
-    const kind = value === '偏多' ? 'bull' : value === '偏空' ? 'bear' : 'neutral';
-    return el('span', { class: 'badge ' + kind + (compact ? '' : ' tendency') }, value || '无倾向');
+  function tendencyPill(value, large) {
+    const kind = value === '偏多' ? 'bull' : value === '偏空' ? 'bear' : '';
+    return el('span', { class: 'pill ' + kind + (large ? ' lg' : '') }, value || '无倾向');
   }
-  function cautionBadge() { return el('span', { class: 'badge caution' }, '今日不宜动手'); }
+  function cautionPill() { return el('span', { class: 'pill caution' }, '今日不宜动手'); }
   function pricedTag(value) { return el('span', { class: 'tag ' + (PRICED_CLASS[value] || '') }, PRICED_LABEL[value] || value || MISSING); }
-  function list(items) { return el('ul', null, (items || []).map((item) => el('li', null, item))); }
-  function table(headers, rows) {
-    return el('div', { class: 'table-scroll' }, el('table', null,
-      el('thead', null, el('tr', null, headers.map((header) => el('th', null, header)))),
-      el('tbody', null, rows)));
+  function importanceChip(value) {
+    return value ? el('span', { class: 'importance ' + (IMPORTANCE_CLASS[value] || 'low') }, '重要性 ' + value) : null;
   }
-  function itemTable(items) {
-    return table(['项目', '结论'], (items || []).map((item) => el('tr', null,
-      el('td', { class: 'item' }, item.item || ''),
-      el('td', null, item.conclusion || MISSING, sourceLine(item.sources)))));
-  }
-  function emptyNote(text) { return el('p', { class: 'muted' }, text); }
+  function empty(text) { return el('p', { class: 'empty' }, text); }
+  function byNewestFirst(a, b) { return String(b.date).localeCompare(String(a.date)); }
   // 日期未定的事件排在最后
   function byEventDate(a, b) { return (a.date ? 0 : 1) - (b.date ? 0 : 1) || String(a.date).localeCompare(String(b.date)); }
-  function section(no, title, subtitle, ...children) {
+  function weekday(date) {
+    const day = new Date(date + 'T12:00:00Z');
+    return isNaN(day) ? '' : WEEKDAYS[day.getUTCDay()];
+  }
+  function section(title, subtitle, ...children) {
     return el('section', { class: 'section' },
-      el('h2', null, el('span', { class: 'no' }, no), title, subtitle && el('small', null, subtitle)),
+      el('div', { class: 'section-head' }, el('h2', null, title), subtitle && el('span', { class: 'sub' }, subtitle)),
       children);
   }
-  function generatedMeta() {
-    return el('div', { class: 'meta' }, [REPORT.generated_at && '生成于 ' + REPORT.generated_at, REPORT.session_note].filter(Boolean).join(' · '));
+  function block(title, subtitle, ...children) {
+    return el('div', { class: 'block' },
+      el('div', { class: 'block-head' }, el('h3', null, title), subtitle && el('small', null, subtitle)),
+      children);
   }
-  function disclaimer() {
-    return el('p', { class: 'disclaimer' },
-      '方向倾向和多空判断未经验证，仅供参考，不构成买卖建议。行情来自 Yahoo Finance，约有 15 分钟延迟；新闻和数字来自联网搜索，以标注的来源和日期为准；“传闻”级别的消息未经证实。');
+  function facts(items, single) {
+    if (!(items || []).length) return null;
+    return el('div', { class: 'facts' + (single ? ' single' : '') }, items.map((item) => el('div', { class: 'fact' },
+      el('div', { class: 'fact-label' }, item.item || ''),
+      rich(item.conclusion, 'fact-text') || el('div', { class: 'fact-text' }, MISSING),
+      sourceLine(item.sources))));
   }
 
   // ---------- 配色 ----------
@@ -322,8 +454,8 @@
     const css = getComputedStyle(document.documentElement);
     const read = (name) => css.getPropertyValue(name).trim();
     colors = {
-      up: read('--up'), down: read('--down'), text: read('--text'), muted: read('--muted'),
-      border: read('--border'), accent: read('--accent'), warn: read('--warn'), panel: read('--panel'),
+      up: read('--up'), down: read('--down'), text: read('--text'), muted: read('--muted'), faint: read('--faint'),
+      line: read('--line'), accent: read('--accent'), warn: read('--warn'), bg: read('--bg'),
     };
   }
   function currentScheme() { return document.documentElement.getAttribute('data-colors') === 'cn' ? 'cn' : 'us'; }
@@ -337,7 +469,10 @@
     return chart;
   }
   function tooltipStyle() {
-    return { backgroundColor: colors.panel, borderColor: colors.border, textStyle: { color: colors.text }, extraCssText: 'box-shadow: 0 4px 14px rgba(0,0,0,.12);' };
+    return {
+      backgroundColor: colors.bg, borderColor: colors.line, textStyle: { color: colors.text, fontFamily: CHART_FONT },
+      extraCssText: 'box-shadow: 0 6px 20px rgba(23,32,42,.12); border-radius: 8px;',
+    };
   }
 
   function newsByTradingDay(news, dates) {
@@ -380,7 +515,7 @@
     const startIndex = Math.max(0, candles.length - 60);
     initChart(node).setOption({
       backgroundColor: 'transparent', animation: false,
-      textStyle: { color: colors.text },
+      textStyle: { color: colors.text, fontFamily: CHART_FONT },
       legend: { top: 0, textStyle: { color: colors.muted }, data: ['K 线', 'MA20', 'MA50', 'MA200'] },
       axisPointer: { link: [{ xAxisIndex: 'all' }] },
       tooltip: Object.assign(tooltipStyle(), {
@@ -391,39 +526,39 @@
             '开 ' + price(candle.open) + '　高 ' + price(candle.high) + '　低 ' + price(candle.low) + '　收 ' + price(candle.close),
             '涨跌 ' + pct(candle.change_pct) + '　成交量 ' + (candle.volume / 1e6).toFixed(1) + 'M'];
           for (const item of grouped[candle.date] || []) {
-            lines.push('<span style="color:' + colors.warn + '">●</span> ' + escapeHtml(item.title || '') + ' <span style="color:' + colors.muted + '">[' + escapeHtml(item.credibility || '') + ']</span>');
+            lines.push('<span style="color:' + colors.warn + '">●</span> ' + escapeHtml(item.title || '') + ' <span style="color:' + colors.faint + '">[' + escapeHtml(item.credibility || '') + ']</span>');
           }
-          return '<div style="max-width:420px;white-space:normal">' + lines.join('<br>') + '</div>';
+          return '<div style="max-width:420px;white-space:normal;line-height:1.6">' + lines.join('<br>') + '</div>';
         },
       }),
-      grid: [{ left: 60, right: 80, top: 36, height: 320 }, { left: 60, right: 80, top: 386, height: 70 }],
+      grid: [{ left: 56, right: 84, top: 36, height: 320 }, { left: 56, right: 84, top: 386, height: 70 }],
       xAxis: [
-        { type: 'category', data: dates, gridIndex: 0, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { show: false } },
-        { type: 'category', data: dates, gridIndex: 1, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { color: colors.muted } },
+        { type: 'category', data: dates, gridIndex: 0, axisLine: { lineStyle: { color: colors.line } }, axisTick: { show: false }, axisLabel: { show: false } },
+        { type: 'category', data: dates, gridIndex: 1, axisLine: { lineStyle: { color: colors.line } }, axisTick: { show: false }, axisLabel: { color: colors.faint } },
       ],
       yAxis: [
-        { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: colors.border, opacity: 0.6 } }, axisLabel: { color: colors.muted } },
+        { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: colors.line } }, axisLabel: { color: colors.faint } },
         { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
       ],
       dataZoom: [
         { type: 'inside', xAxisIndex: [0, 1], startValue: startIndex, endValue: candles.length - 1 },
-        { type: 'slider', xAxisIndex: [0, 1], startValue: startIndex, endValue: candles.length - 1, bottom: 8, height: 22, textStyle: { color: colors.muted }, borderColor: colors.border },
+        { type: 'slider', xAxisIndex: [0, 1], startValue: startIndex, endValue: candles.length - 1, bottom: 8, height: 22, textStyle: { color: colors.faint }, borderColor: colors.line },
       ],
       series: [
         {
           name: 'K 线', type: 'candlestick', data: candles.map((candle) => [candle.open, candle.close, candle.low, candle.high]),
           itemStyle: { color: colors.up, color0: colors.down, borderColor: colors.up, borderColor0: colors.down },
           markLine: { symbol: 'none', silent: true, data: levels, lineStyle: { type: 'dashed', width: 1 }, label: { formatter: '{b}', color: colors.muted, position: 'end' } },
-          markPoint: { symbol: 'pin', symbolSize: 34, data: newsPoints, itemStyle: { color: colors.warn }, label: { color: '#fff', fontSize: 11 } },
+          markPoint: { symbol: 'pin', symbolSize: 34, data: newsPoints, itemStyle: { color: colors.warn }, label: { color: colors.bg, fontSize: 11 } },
           markArea: {
             silent: true, itemStyle: { color: colors.accent, opacity: 0.06 }, label: { show: false },
             data: [[{ xAxis: recentStart }, { xAxis: recentEnd }]],
           },
         },
-        maLine('MA20', 'sma20', '#bf8700'), maLine('MA50', 'sma50', '#0969da'), maLine('MA200', 'sma200', '#8250df'),
+        maLine('MA20', 'sma20', '#bf8700'), maLine('MA50', 'sma50', '#1f5fd1'), maLine('MA200', 'sma200', '#8250df'),
         {
           name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
-          data: candles.map((candle) => ({ value: candle.volume, itemStyle: { color: candle.close >= candle.open ? colors.up : colors.down, opacity: 0.7 } })),
+          data: candles.map((candle) => ({ value: candle.volume, itemStyle: { color: candle.close >= candle.open ? colors.up : colors.down, opacity: 0.6 } })),
         },
       ],
     });
@@ -436,30 +571,33 @@
     const base = available.length ? SYMBOLS[available[0].symbol].candles.slice(-(RECENT_DAYS + 1)) : [];
     if (base.length < 2) return chartMissing(node, '对比数据' + MISSING);
     const dates = base.map((candle) => candle.date);
-    const palette = ['#1f2328', '#0969da', '#8250df', '#bf8700'];
+    const palette = [colors.text, '#1f5fd1', '#8250df', '#bf8700'];
     const series = available.map((entry, index) => {
       const closes = {};
       for (const candle of SYMBOLS[entry.symbol].candles) closes[candle.date] = candle.close;
       const start = closes[dates[0]];
+      const color = palette[index % palette.length];
       return {
         name: entry.name, type: 'line', showSymbol: false, connectNulls: true,
-        lineStyle: { width: index === 0 ? 2.6 : 1.4, color: palette[index % palette.length] }, itemStyle: { color: palette[index % palette.length] },
+        lineStyle: { width: index === 0 ? 2.6 : 1.4, color }, itemStyle: { color },
         data: dates.map((date) => (start && closes[date] ? +((closes[date] / start - 1) * 100).toFixed(2) : null)),
       };
     });
     initChart(node).setOption({
       backgroundColor: 'transparent', animation: false,
+      textStyle: { fontFamily: CHART_FONT },
       legend: { top: 0, textStyle: { color: colors.muted } },
       tooltip: Object.assign(tooltipStyle(), { trigger: 'axis', valueFormatter: (value) => pct(value) }),
-      grid: { left: 60, right: 30, top: 36, bottom: 30 },
-      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { color: colors.muted } },
-      yAxis: { type: 'value', axisLabel: { color: colors.muted, formatter: '{value}%' }, splitLine: { lineStyle: { color: colors.border, opacity: 0.6 } } },
+      grid: { left: 56, right: 30, top: 36, bottom: 30 },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: colors.line } }, axisTick: { show: false }, axisLabel: { color: colors.faint } },
+      yAxis: { type: 'value', axisLabel: { color: colors.faint, formatter: '{value}%' }, splitLine: { lineStyle: { color: colors.line } } },
       series,
     });
   }
   function indexEntries() {
     return INDEX_SYMBOLS.map((symbol) => ({ symbol, name: (SYMBOLS[symbol] && SYMBOLS[symbol].name) || symbol }));
   }
+  function chartBox(node) { return el('div', { class: 'chart-box' }, node); }
 
   // ---------- 侧边栏 ----------
   function navItem(route, label, side) {
@@ -467,7 +605,7 @@
       el('span', { class: 'label' }, label), el('span', { class: 'side' }, side));
   }
   function schemeSwatch(scheme) {
-    const [rise, fall] = scheme === 'cn' ? ['#cf222e', '#1a7f37'] : ['#1a7f37', '#cf222e'];
+    const [rise, fall] = scheme === 'cn' ? ['#cc2f2f', '#16803c'] : ['#16803c', '#cc2f2f'];
     return el('span', { class: 'swatch' }, el('i', { style: 'background:' + rise }), el('i', { style: 'background:' + fall }));
   }
   function renderSidebar() {
@@ -481,134 +619,128 @@
     });
     return el('nav', { class: 'sidebar' },
       el('div', { class: 'brand' }, el('div', { class: 'title' }, '盘前简报'), el('div', { class: 'meta' }, REPORT.date || '')),
-      navItem(MACRO_ROUTE, '宏观', el('span', { class: 'muted' }, (MACRO.news || []).length + ' 条')),
+      navItem(MACRO_ROUTE, '宏观', null),
       el('div', { class: 'nav-sep' }),
       STOCKS.map((stock) => navItem(stock.ticker, stock.ticker, [
         stock.caution && stock.caution.flag && el('span', { class: 'dot', title: '今日不宜动手' }),
-        tendencyBadge(stock.tendency, true),
+        tendencyPill(stock.tendency),
       ])),
       el('div', { class: 'nav-foot' }, toggle));
   }
 
-  // ---------- 宏观页 ----------
+  // ---------- 消息和事件的行 ----------
   function impactChip(name, direction, extraClass) {
     return el('span', { class: 'impact ' + (DIRECTION_CLASS[direction] || 'neu') + (extraClass ? ' ' + extraClass : ''), title: direction || '' }, name);
   }
-  function impactLegend() {
-    return el('p', { class: 'caption' }, '底色：', impactChip('利多', '利多'), impactChip('利空', '利空'), impactChip('中性', '中性'),
-      '。第一个色块是对大盘的影响，后面是受影响最大的行业（最多 5 个）。');
+  function impactChips(item) {
+    const industries = item.industries || [];
+    if (!item.market_impact && !industries.length) return null;
+    return el('div', { class: 'impacts' },
+      item.market_impact && impactChip('大盘', item.market_impact, 'market'),
+      industries.map((industry) => impactChip(industry.name || '', industry.impact)));
   }
+  function dateCell(date, withWeekday) {
+    return el('div', { class: 'date' }, date || '日期未定', withWeekday && date && el('div', { class: 'weekday' }, weekday(date)));
+  }
+  function newsRow(item, meta) {
+    return el('div', { class: 'news' },
+      dateCell(item.date, false),
+      el('div', null,
+        el('div', { class: 'title' }, inline(item.title)),
+        rich(item.detail, 'detail'),
+        impactChips(item)),
+      el('div', { class: 'meta' }, meta, sourceLink(item.source_url, item.source_name)));
+  }
+  function eventRow(event, showScope) {
+    return el('div', { class: 'news' },
+      dateCell(event.date, true),
+      el('div', null,
+        el('div', { class: 'title' }, inline(event.event)),
+        rich(event.detail, 'detail'),
+        impactChips(event)),
+      el('div', { class: 'meta' },
+        showScope && el('span', { class: 'pill' }, event.scope),
+        event.scope === '公司' ? credibilityPill(event.credibility) : importanceChip(event.importance),
+        sourceLink(event.source_url, event.source_name)));
+  }
+  function impactLegend(extra) {
+    return el('div', { class: 'legend' }, '色块：', impactChip('利多', '利多'), impactChip('利空', '利空'), impactChip('中性', '中性'), extra);
+  }
+
+  // ---------- 宏观页 ----------
   function renderMacroPage() {
     const indexTiles = INDEX_SYMBOLS.filter((symbol) => SYMBOLS[symbol] && !SYMBOLS[symbol].error).map((symbol) => {
       const data = SYMBOLS[symbol];
       return el('div', { class: 'tile' },
         el('div', { class: 'label' }, data.name + ' · ' + data.last_date),
-        el('div', { class: 'value num' }, price(data.last_close), ' ', pctNode(data.last_change_pct)),
+        el('div', { class: 'value' }, price(data.last_close), ' ', pctNode(data.last_change_pct)),
         el('div', { class: 'verdict' }, '近 14 个交易日 ', pctNode(data.indicators.change_14d_pct)));
     });
     const chartNode = el('div', { class: 'chart compare' });
     pendingCharts.push(() => renderCompareChart(chartNode, indexEntries()));
 
-    const newsRows = (MACRO.news || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map((item) => el('tr', null,
-      el('td', { class: 'nowrap num' }, item.date || ''),
-      el('td', null,
-        el('div', { class: 'item-title' }, item.title || ''),
-        el('div', { class: 'item-detail' }, item.detail || ''),
-        el('div', { class: 'impacts' }, impactChip('大盘', item.market_impact, 'market'),
-          (item.industries || []).map((industry) => impactChip(industry.name || '', industry.impact)))),
-      el('td', { class: 'nowrap' }, sourceLink(item.source_url, item.source_name))));
-
-    const rates = MACRO.rates || {};
-    const calendarRows = (MACRO.calendar || []).slice().sort(byEventDate).map((event) => el('tr', null,
-      el('td', { class: 'nowrap num' }, event.date || '日期未定'),
-      el('td', null, el('div', { class: 'item-title' }, event.event || ''), el('div', { class: 'item-detail' }, event.detail || '')),
-      el('td', { class: 'nowrap' }, event.importance || ''),
-      el('td', { class: 'nowrap' }, sourceLink(event.source_url, event.source_name))));
-
+    const news = (MACRO.news || []).slice().sort(byNewestFirst).map((item) => newsRow(item, null));
+    const events = (MACRO.calendar || []).slice().sort(byEventDate).map((event) => eventRow(Object.assign({ scope: '宏观' }, event), false));
     return [
-      el('header', { class: 'page-head' }, el('h1', null, '宏观', el('span', { class: 'name' }, REPORT.date || '')), generatedMeta()),
-      section('01', '大盘近况', '近 14 个交易日',
-        el('div', { class: 'tiles' }, indexTiles),
-        MACRO.summary && el('p', null, MACRO.summary),
-        el('div', { class: 'panel' }, chartNode)),
-      section('02', '宏观消息', '过去 14 天',
-        impactLegend(),
-        newsRows.length ? table(['日期', '消息与影响', '来源'], newsRows) : emptyNote('近期宏观消息：' + MISSING)),
-      section('03', '货币政策与利率', '美联储、议息预期、10 年期美债',
-        el('div', { class: 'panel' }, el('p', null, rates.conclusion || MISSING), sourceLine(rates.sources))),
-      section('04', '宏观日历', '今天起 14 天',
-        calendarRows.length ? table(['日期', '事件', '重要性', '来源'], calendarRows) : emptyNote(MISSING)),
-      disclaimer(),
+      el('header', { class: 'page-head' }, el('h1', null, '宏观')),
+      section('大盘近况', '近 14 个交易日',
+        el('div', { class: 'index-tiles' }, indexTiles),
+        rich(MACRO.summary),
+        el('div', { style: 'margin-top:16px' }, chartBox(chartNode))),
+      section('宏观消息', '过去 14 天',
+        impactLegend('第一个是对大盘的影响，后面是受影响最大的行业'),
+        news.length ? el('div', { class: 'rows' }, news) : empty(MISSING)),
+      section('宏观日历', '未来 14 天',
+        impactLegend('方向还不确定时为中性'),
+        events.length ? el('div', { class: 'rows' }, events) : empty(MISSING)),
     ];
-  }
-
-  // ---------- 个股页：页头 ----------
-  function extendedLabel(extended) { return extended.session === 'pre' ? '盘前' : '盘后'; }
-  function renderStockHead(stock, market) {
-    const extended = market.extended;
-    return el('header', { class: 'page-head' },
-      el('h1', null, stock.ticker, el('span', { class: 'name' }, stock.name || market.name || '')),
-      generatedMeta(),
-      el('div', { class: 'head-badges' },
-        tendencyBadge(stock.tendency),
-        stock.caution && stock.caution.flag && cautionBadge(),
-        stock.earnings_mode && el('span', { class: 'badge' }, stock.earnings_mode)),
-      market.error || !isNumber(market.last_close)
-        ? emptyNote('行情数据获取失败。' + (stock.price_data_note || ''))
-        : el('div', { class: 'quote' },
-          el('div', null, el('div', { class: 'label' }, '上一收盘 ' + (market.last_date || '')),
-            el('span', { class: 'big num' }, price(market.last_close)), pctNode(market.last_change_pct)),
-          extended && el('div', null, el('div', { class: 'label' }, extendedLabel(extended) + ' ' + extended.time_et + ' ET'),
-            el('span', { class: 'big num' }, price(extended.price)), pctNode(extended.change_pct))),
-      (stock.key_points || []).length ? el('div', { class: 'panel key-points' },
-        el('div', { class: 'label' }, '今天最重要的事'), list(stock.key_points)) : null);
   }
 
   // ---------- 个股页：今日分析 ----------
-  function renderTendency(stock) {
+  function renderBrief(stock) {
     const caution = stock.caution || {};
-    return el('div', { class: 'panel tendency-card' },
-      el('div', { class: 'row' }, el('span', { class: 'label' }, '方向倾向'), tendencyBadge(stock.tendency)),
-      el('p', null, stock.tendency_reason || ''),
-      caution.flag && el('div', { class: 'caution-line' }, cautionBadge(), ' ', caution.reason || ''));
-  }
-
-  function renderScenarios(stock) {
     const scenarios = stock.scenarios || {};
-    const column = (title, kind, items) => el('div', { class: 'panel scenario ' + kind },
-      el('h4', null, title),
-      (items || []).length ? el('ul', null, items.map((item) => el('li', null, el('div', null, item.condition || ''), el('div', { class: 'item-detail' }, '盯：' + (item.signal || MISSING))))) : emptyNote(MISSING));
-    return [
-      el('h3', null, '今天的情景'),
-      el('div', { class: 'two-col' }, column('偏利好的情况', 'bull', scenarios.bullish), column('偏利空的情况', 'bear', scenarios.bearish)),
-    ];
+    const scenario = (title, kind, items) => el('div', { class: 'scenario ' + kind },
+      el('div', { class: 'scenario-title' }, title),
+      (items || []).length ? el('ul', null, items.map((item) => el('li', null,
+        el('div', null, inline(item.condition)),
+        el('div', { class: 'watch' }, el('span', { class: 'tag' }, '盯'), el('span', null, inline(item.signal || MISSING))))))
+        : empty(MISSING));
+    return el('div', { class: 'brief' },
+      el('div', { class: 'brief-top' },
+        el('div', { class: 'row' }, el('span', { class: 'eyebrow' }, '方向倾向'), tendencyPill(stock.tendency, true)),
+        rich(stock.tendency_reason, 'brief-reason'),
+        caution.flag && el('div', { class: 'brief-caution' }, cautionPill(), el('span', null, inline(caution.reason)))),
+      (stock.key_points || []).length ? el('div', { class: 'brief-keys' },
+        el('div', { class: 'eyebrow' }, '今天最重要的事'),
+        el('ol', { class: 'keys' }, stock.key_points.map((point) => el('li', null, el('span', null, inline(point)))))) : null,
+      el('div', { class: 'brief-scenarios' },
+        scenario('▲ 偏利好的情况', 'bull', scenarios.bullish),
+        scenario('▼ 偏利空的情况', 'bear', scenarios.bearish)));
   }
 
   function renderPriceAction(stock) {
-    const rows = (stock.price_action || []).map((item) => el('tr', null,
-      el('td', { class: 'nowrap num' }, item.period || ''),
-      el('td', { class: 'nowrap' }, pctNode(item.move_pct)),
-      el('td', null, item.explanation || ''),
-      el('td', { class: 'nowrap' }, item.driver || '')));
-    return [
-      el('h3', null, '走势与消息对照', el('small', null, '近 14 个交易日')),
-      rows.length ? table(['时间', '涨跌', '对应的消息与归因', '主要驱动'], rows) : emptyNote(MISSING),
-    ];
+    const moves = (stock.price_action || []).map((item) => el('div', { class: 'move' },
+      el('div', { class: 'period' }, item.period || ''),
+      el('div', { class: 'pct ' + signClass(item.move_pct) }, pct(item.move_pct)),
+      el('div', { class: 'text' }, rich(item.explanation)),
+      el('div', null, item.driver && el('span', { class: 'pill' }, item.driver + '驱动'))));
+    return block('走势与消息对照', '近 14 个交易日', moves.length ? el('div', { class: 'rows' }, moves) : empty(MISSING));
   }
 
   // 指标的解释文字固定在模板里，保证每次措辞一致
   function tile(label, valueNode, verdict, plain) {
-    return el('div', { class: 'tile' }, el('div', { class: 'label' }, label), el('div', { class: 'value num' }, valueNode),
+    return el('div', { class: 'tile' }, el('div', { class: 'label' }, label), el('div', { class: 'value' }, valueNode),
       verdict && el('div', { class: 'verdict' }, verdict), el('div', { class: 'plain' }, plain));
   }
   function maVerdict(close, average, label) {
-    if (!isNumber(average)) return el('span', { class: 'muted' }, label + ' 数据不足');
+    if (!isNumber(average)) return el('span', { class: 'faint' }, label + ' 数据不足');
     const above = close >= average;
     return el('span', { class: above ? 'up' : 'down' }, (above ? '高于 ' : '低于 ') + label + '（' + price(average) + '）');
   }
   function levelText(levels) {
     if (!levels || !levels.length) return '未识别到';
-    return levels.map((level) => price(level.price) + '（触及 ' + level.touches + ' 次）').join('、');
+    return levels.map((level) => price(level.price) + '（' + level.touches + ' 次）').join('、');
   }
   function extremeText(label, extreme) {
     return extreme ? label + ' ' + price(extreme.price) + '（' + extreme.date.slice(5) + '）' : null;
@@ -628,20 +760,18 @@
       tile('长期趋势 · 200 日均线', price(ind.sma200), maVerdict(close, ind.sma200, 'MA200'), '近一年的平均成本，常被当作牛熊分界线。上市不满 200 天则没有这个值。'),
       tile('RSI（14 日）', isNumber(rsi) ? rsi.toFixed(1) : MISSING, rsiVerdict, '衡量最近涨得急不急的指标，0 到 100。高于 70 算过热，低于 30 算过冷。'),
       tile('成交量 / 20 日均量', isNumber(volume) ? volume.toFixed(2) + ' 倍' : MISSING, volumeVerdict, '最新一天的成交量是平时的几倍。放量的涨跌比缩量的更可信。'),
-      tile('支撑位', levelText(ind.support), extremeText('近 14 日最低', ind.recent_low), '过去多次跌到这里就被买回去的价位，跌破它通常会加速下跌。近 14 日最低价只出现过一次，仅作参考。'),
-      tile('压力位', levelText(ind.resistance), extremeText('近 14 日最高', ind.recent_high), '过去多次涨到这里就被卖下来的价位，放量突破它通常是强势信号。近 14 日最高价只出现过一次，仅作参考。'),
+      tile('支撑位', el('span', { style: 'font-size:15px' }, levelText(ind.support)), extremeText('近 14 日最低', ind.recent_low), '过去多次跌到这里就被买回去的价位，跌破它通常会加速下跌。近 14 日最低价只出现过一次，仅作参考。'),
+      tile('压力位', el('span', { style: 'font-size:15px' }, levelText(ind.resistance)), extremeText('近 14 日最高', ind.recent_high), '过去多次涨到这里就被卖下来的价位，放量突破它通常是强势信号。近 14 日最高价只出现过一次，仅作参考。'),
       tile('距 52 周高点', pctNode(ind.pct_from_week52_high), '52 周区间 ' + price(ind.week52_low) + ' – ' + price(ind.week52_high), '当前价格离过去一年最高价有多远。'),
-      tile('跳空缺口', el('span', { style: 'font-size:14px' }, gapText), null, '开盘价直接跳过前一天的价格区间，中间没有成交。未回补的缺口常被当作之后的支撑或压力。'));
+      tile('跳空缺口', el('span', { style: 'font-size:15px' }, gapText), null, '开盘价直接跳过前一天的价格区间，中间没有成交。未回补的缺口常被当作之后的支撑或压力。'));
   }
 
   function renderTechnical(stock, market) {
     const technical = stock.technical || {};
-    const head = [
-      el('h3', null, '技术分析', el('small', null, '描述现状和关键价位，不是预测依据')),
-      technical.summary && el('p', null, technical.summary),
-    ];
+    const summary = rich(technical.summary);
     if (market.error || !market.candles) {
-      return head.concat(emptyNote('行情数据获取失败，图表和技术指标不可用。' + (stock.price_data_note || '')));
+      return block('技术分析', '描述现状和关键价位，不是预测依据', summary,
+        empty('行情数据获取失败，图表和技术指标不可用。' + (stock.price_data_note || '')));
     }
     const candleNode = el('div', { class: 'chart' });
     const compareNode = el('div', { class: 'chart compare' });
@@ -650,19 +780,16 @@
       .concat(indexEntries());
     // ECharts 要在容器进入页面、有尺寸之后才能初始化
     pendingCharts.push(() => { renderCandleChart(candleNode, stock, market); renderCompareChart(compareNode, compareEntries); });
-    const patternRows = (technical.patterns || []).map((pattern) => el('tr', null,
-      el('td', { class: 'nowrap' }, el('span', { class: 'item-title' }, pattern.name || '')),
-      el('td', { class: 'nowrap' }, el('span', { class: 'badge ' + (pattern.status === '明确' ? 'official' : 'rumor') }, pattern.status || '疑似')),
-      el('td', null, el('div', null, pattern.plain || ''), el('div', { class: 'item-detail' }, '依据：' + (pattern.basis || MISSING)))));
-    return head.concat(
-      el('h3', null, 'K 线', el('small', null, '图钉是新闻，悬停查看；虚线是支撑位和压力位；阴影是近 14 个交易日，点线是这期间的最高价和最低价；可拖动下方滑块看 6 个月')),
-      el('div', { class: 'panel' }, candleNode),
-      el('h3', null, '相对表现', el('small', null, '近 14 个交易日累计涨跌，对比板块和大盘')),
-      el('div', { class: 'panel' }, compareNode),
-      el('h3', null, '指标'),
-      renderIndicatorTiles(market),
-      el('h3', null, '形态', el('small', null, '形态判断带主观成分')),
-      patternRows.length ? table(['形态', '把握', '含义与依据'], patternRows) : emptyNote('无明显形态。'));
+    const patterns = (technical.patterns || []).map((pattern) => el('div', { class: 'pattern' },
+      el('div', { class: 'name' }, pattern.name || '', el('span', { class: 'pill ' + (pattern.status === '明确' ? 'official' : 'rumor') }, pattern.status || '疑似')),
+      el('div', null, el('div', null, inline(pattern.plain)), el('div', { class: 'basis' }, '依据：', inline(pattern.basis || MISSING)))));
+    return [
+      block('技术分析', '描述现状和关键价位，不是预测依据', summary),
+      block('K 线', '图钉是新闻，悬停查看；虚线是支撑位和压力位；阴影是近 14 个交易日，点线是这期间的最高价和最低价；拖动下方滑块看 6 个月', chartBox(candleNode)),
+      block('相对表现', '近 14 个交易日累计涨跌，对比板块和大盘', chartBox(compareNode)),
+      block('指标', null, renderIndicatorTiles(market)),
+      block('形态', '形态判断带主观成分', patterns.length ? el('div', { class: 'rows' }, patterns) : empty('无明显形态。')),
+    ];
   }
 
   // ---------- 个股页：多空对照 ----------
@@ -691,119 +818,168 @@
     const points = rankPoints(data.points);
     const falsifiers = data.falsifiers || [];
     return el('div', { class: 'case ' + side },
-      el('div', { class: 'case-head' }, el('span', { class: 'case-title' }, meta.title), el('span', { class: 'muted' }, meta.subtitle)),
-      el('h3', null, meta.topTitle),
-      top.length ? top.map((item, index) => el('div', { class: 'top-item' },
-        el('div', { class: 'rank' }, index + 1),
-        el('div', null,
-          el('div', null, el('span', { class: 'title' }, item.title || ''), el('span', { class: 'tag level' }, item.level || MISSING)),
-          el('div', { class: 'item-detail' }, item.detail || ''))))
-        : emptyNote(meta.topEmpty),
-      el('h3', null, meta.listTitle, points.length ? el('small', null, '共 ' + points.length + ' 条，按重要程度排序') : null),
-      points.length ? [
-        renderMatrix(points, meta),
-        el('div', { class: 'caption' }, meta.caption),
-        points.map((point) => el('div', { class: 'point' },
-          el('div', { class: 'title' }, el('b', null, '#' + point.number), point.title || ''),
-          el('div', { class: 'tags' },
-            el('span', { class: 'tag level' }, point.level || MISSING),
-            el('span', { class: 'tag ' + (GRADE_CLASS[point.impact] || '') }, meta.gradeLabel + ' ' + (point.impact || MISSING)),
-            pricedTag(point.priced_in)),
-          el('div', null, point.evidence || MISSING),
-          sourceLine(point.sources))),
-      ] : emptyNote(meta.listEmpty),
-      el('h3', null, '证伪条件', el('small', null, meta.falsifierNote)),
-      falsifiers.length ? falsifiers.map((entry) => el('div', { class: 'falsifier' },
-        el('div', { class: 'signal' }, entry.signal || ''),
-        entry.check && el('div', { class: 'check' }, '怎么检验：' + entry.check)))
-        : emptyNote(MISSING),
-      side === 'bear' && [
-        el('h3', null, '通用空头清单', el('small', null, '只列有实质内容的项')),
-        (data.general_risks || []).length ? itemTable(data.general_risks)
-          : emptyNote('竞争、客户集中度、监管诉讼、资产负债表、内部人、会计这几项都查过，没有发现有实质内容的利空。'),
-      ]);
+      el('div', { class: 'case-head' }, el('span', { class: 'case-title' }, meta.title), el('span', { class: 'sub' }, meta.subtitle)),
+      el('div', { class: 'case-body' },
+        block(meta.topTitle, null, top.length ? el('div', { class: 'rows' }, top.map((item, index) => el('div', { class: 'top-item' },
+          el('div', { class: 'rank' }, index + 1),
+          el('div', null,
+            el('div', null, el('span', { class: 'title' }, item.title || ''), el('span', { class: 'tag level' }, item.level || MISSING)),
+            rich(item.detail, 'detail')))))
+          : empty(meta.topEmpty)),
+        block(meta.listTitle, null,
+          points.length ? [
+            renderMatrix(points, meta),
+            el('div', { class: 'caption' }, meta.caption),
+            el('div', { class: 'rows', style: 'margin-top:12px' }, points.map((point) => el('div', { class: 'point' },
+              el('div', { class: 'title' }, el('b', null, '#' + point.number), point.title || ''),
+              el('div', { class: 'tags' },
+                el('span', { class: 'tag level' }, point.level || MISSING),
+                el('span', { class: 'tag ' + (GRADE_CLASS[point.impact] || '') }, meta.gradeLabel + ' ' + (point.impact || MISSING)),
+                pricedTag(point.priced_in)),
+              rich(point.evidence || MISSING, 'evidence'),
+              sourceLine(point.sources)))),
+          ] : empty(meta.listEmpty)),
+        block('证伪条件', meta.falsifierNote, falsifiers.length ? el('div', { class: 'rows' }, falsifiers.map((entry) => el('div', { class: 'falsifier' },
+          el('div', { class: 'signal' }, inline(entry.signal)),
+          entry.check && el('div', { class: 'check' }, '怎么检验：', inline(entry.check)))))
+          : empty(MISSING)),
+        side === 'bear' && block('通用空头清单', '只列有实质内容的项',
+          facts(data.general_risks, true) || empty('竞争、客户集中度、监管诉讼、资产负债表、内部人、会计这几项都查过，没有发现有实质内容的利空。'))));
+  }
+
+  // ---------- 个股页：财报拆解 ----------
+  const TRADING_DAYS_1M = 21;
+  const TRADING_DAYS_3M = 63;
+  // 财报后第一个能反应的交易日：盘后发布看下一个交易日，盘前发布看当天。还没有这一天的行情时 pending 为 true
+  function earningsMoves(candles, reportDate, timing) {
+    if (!candles || !candles.length || !reportDate) return null;
+    const dates = candles.map((candle) => candle.date);
+    const reaction = dates.findIndex((date) => (timing === '盘前' ? date >= reportDate : date > reportDate));
+    const pending = reaction === -1;
+    const before = pending ? dates.length - 1 : reaction - 1;
+    if (before < 0) return null;
+    const change = (from, to) => (from >= 0 && to > from ? +((candles[to].close / candles[from].close - 1) * 100).toFixed(2) : null);
+    return {
+      pending,
+      reactionDate: pending ? null : dates[reaction],
+      month1: change(before - TRADING_DAYS_1M, before),
+      month3: change(before - TRADING_DAYS_3M, before),
+      reaction: pending ? null : change(before, reaction),
+      since: pending ? null : change(reaction, dates.length - 1),
+    };
+  }
+  function moveTile(label, value, sectorLabel, sectorValue, note) {
+    return el('div', { class: 'tile' }, el('div', { class: 'label' }, label),
+      el('div', { class: 'value' }, isNumber(value) ? pctNode(value) : el('span', { class: 'faint', style: 'font-size:15px' }, note || '—')),
+      isNumber(sectorValue) && el('div', { class: 'verdict faint' }, sectorLabel + ' ', pctNode(sectorValue)));
+  }
+  function impliedTile(impliedMove, reaction) {
+    const implied = parseFloat(String(impliedMove || '').replace(/[^\d.]/g, ''));
+    const compare = isNumber(implied) && isNumber(reaction)
+      ? '实际 ' + Math.abs(reaction).toFixed(1) + '%，' + (Math.abs(reaction) > implied ? '大于' : '小于') + '隐含波动' : null;
+    return el('div', { class: 'tile' }, el('div', { class: 'label' }, '期权隐含波动'),
+      el('div', { class: 'value' }, impliedMove || MISSING), compare && el('div', { class: 'verdict faint' }, compare));
+  }
+  function signedCell(text) {
+    const value = String(text || '').trim();
+    const kind = /^\+/.test(value) ? ' up' : /^[-−]/.test(value) ? ' down' : '';
+    return el('td', { class: 'n' + kind }, value || '—');
+  }
+  function renderScorecard(rows) {
+    const hasWhisper = rows.some((row) => row.whisper);
+    const hasPrior = rows.some((row) => row.prior_surprise);
+    const headers = ['指标', '实际', '一致预期'].concat(hasWhisper ? ['买方预期'] : [], ['差异'], hasPrior ? ['上季差异'] : [], ['来源']);
+    return el('div', { class: 'scorecard-wrap' }, el('table', { class: 'scorecard' },
+      el('thead', null, el('tr', null, headers.map((header) => el('th', null, header)))),
+      el('tbody', null, rows.map((row) => el('tr', null,
+        el('td', { class: 'metric' }, row.metric || ''),
+        el('td', { class: 'actual' }, row.actual || MISSING),
+        el('td', null, row.consensus || MISSING),
+        hasWhisper && el('td', null, row.whisper || '—'),
+        signedCell(row.surprise),
+        hasPrior && signedCell(row.prior_surprise),
+        el('td', { class: 'src' }, sourceLink(row.source_url, row.source_name)))))));
+  }
+  function leanPill(value) {
+    const kind = value === '偏多' ? 'bull' : value === '偏空' ? 'bear' : '';
+    return el('span', { class: 'pill ' + kind }, value || '中性');
+  }
+  function renderEarningsItem(item) {
+    return el('div', { class: 'eitem' },
+      el('div', { class: 'eitem-head' }, el('span', { class: 'eitem-name' }, item.item || ''), leanPill(item.lean)),
+      item.summary && el('div', { class: 'eitem-summary' }, inline(item.summary)),
+      el('div', { class: 'views' },
+        el('div', { class: 'view bull' }, el('div', { class: 'view-label' }, '多头怎么看'), rich(item.bull) || MISSING),
+        el('div', { class: 'view bear' }, el('div', { class: 'view-label' }, '空头怎么看'), rich(item.bear) || MISSING)),
+      sourceLine(item.sources));
+  }
+  function renderEarnings(stock, market) {
+    const earnings = stock.earnings || {};
+    const moves = market.error ? null : earningsMoves(market.candles, earnings.report_date, earnings.report_timing);
+    const sectorData = SYMBOLS[stock.sector_etf];
+    const sectorMoves = sectorData && !sectorData.error ? earningsMoves(sectorData.candles, earnings.report_date, earnings.report_timing) : null;
+    const sectorLabel = '板块 ' + (stock.sector_etf || '');
+    const sector = (key) => (sectorMoves ? sectorMoves[key] : null);
+    const missing = market.error || !market.candles ? '行情不可用' : !moves ? '超出行情范围' : null;
+    const afterNote = moves && moves.pending ? '尚未开盘' : missing;
+    const reactionLabel = (earnings.report_timing === '盘前' ? '财报当日' : '财报次日') + (moves && moves.reactionDate ? ' · ' + moves.reactionDate.slice(5) : '');
+    const subtitle = [earnings.report, [earnings.report_date, earnings.report_timing].filter(Boolean).join(' '), '最近一次已公布的财报'].filter(Boolean).join(' · ');
+    const items = earnings.items || [];
+    return block('财报拆解', subtitle,
+      el('div', { class: 'eyebrow sub-head' }, '实际 vs 预期'),
+      (earnings.scorecard || []).length ? renderScorecard(earnings.scorecard) : empty(MISSING),
+      el('div', { class: 'eyebrow sub-head' }, '股价反应（按财报日从行情计算）'),
+      el('div', { class: 'tiles' },
+        moveTile('财报前 1 个月', moves && moves.month1, sectorLabel, sector('month1'), missing),
+        moveTile('财报前 3 个月', moves && moves.month3, sectorLabel, sector('month3'), missing),
+        moveTile(reactionLabel, moves && moves.reaction, sectorLabel, sector('reaction'), afterNote),
+        moveTile('之后至今', moves && moves.since, sectorLabel, sector('since'), afterNote),
+        impliedTile(earnings.implied_move, moves && moves.reaction)),
+      el('div', { class: 'eyebrow sub-head' }, '逐项判断'),
+      items.length ? el('div', { class: 'rows' }, items.map(renderEarningsItem)) : empty(MISSING));
   }
 
   // ---------- 个股页：新闻与日历 ----------
-  function newsRows(items, withCategory) {
-    return (items || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map((item) => el('tr', null,
-      el('td', { class: 'nowrap num' }, item.date || ''),
-      withCategory && el('td', { class: 'nowrap' }, item.category || ''),
-      el('td', null, el('div', { class: 'item-title' }, item.title || ''), el('div', { class: 'item-detail' }, item.detail || '')),
-      el('td', { class: 'nowrap' }, credibilityBadge(item.credibility)),
-      el('td', { class: 'nowrap' }, pricedTag(item.priced_in)),
-      el('td', { class: 'nowrap' }, sourceLink(item.source_url, item.source_name))));
+  function stockNewsRow(item) {
+    return newsRow(item, [credibilityPill(item.credibility), pricedTag(item.priced_in)]);
   }
   function renderOvernight(stock) {
     const overnight = stock.overnight || {};
-    const rows = newsRows(overnight.items, false);
-    return [
-      el('h3', null, '昨晚到今早'),
-      overnight.note && el('p', null, overnight.note),
-      rows.length ? table(['日期', '消息', '可信度', '是否已计价', '来源'], rows) : emptyNote('没有找到新的消息。'),
-    ];
+    const items = (overnight.items || []).slice().sort(byNewestFirst).map(stockNewsRow);
+    return block('昨晚到今早', null,
+      rich(overnight.note) && el('div', { style: 'margin-bottom:10px' }, rich(overnight.note)),
+      items.length ? el('div', { class: 'rows' }, items) : empty('没有找到新的消息。'));
   }
   function renderNews(stock) {
-    const rows = [];
-    for (const category of CATEGORY_ORDER) rows.push(...newsRows((stock.news || []).filter((item) => item.category === category), true));
+    const groups = CATEGORY_ORDER.map((category) => {
+      const items = (stock.news || []).filter((item) => item.category === category).sort(byNewestFirst);
+      return items.length ? el('div', { class: 'feed-group' }, el('div', { class: 'eyebrow' }, category), el('div', { class: 'rows' }, items.map(stockNewsRow))) : null;
+    }).filter(Boolean);
     const searched = stock.news_categories_empty || [];
-    return [
-      el('h3', null, '公司新闻', el('small', null, '过去 14 天，按类别')),
-      rows.length ? table(['日期', '类别', '消息', '可信度', '是否已计价', '来源'], rows) : emptyNote(MISSING),
-      searched.length ? emptyNote('已搜索但未找到消息的类别：' + searched.join('、')) : null,
-    ];
+    return block('公司新闻', '过去 14 天，按类别',
+      groups.length ? groups : empty(MISSING),
+      searched.length ? el('p', { class: 'empty' }, '已搜索但未找到消息的类别：' + searched.join('、')) : null);
   }
   function renderCalendar(stock) {
     const events = (stock.calendar || []).map((event) => Object.assign({ scope: '公司' }, event))
       .concat((MACRO.calendar || []).map((event) => Object.assign({ scope: '宏观' }, event)))
-      .sort(byEventDate);
-    const rows = events.map((event) => el('tr', null,
-      el('td', { class: 'nowrap num' }, event.date || '日期未定'),
-      el('td', { class: 'nowrap' }, el('span', { class: 'badge' }, event.scope)),
-      el('td', null, el('div', { class: 'item-title' }, event.event || ''), el('div', { class: 'item-detail' }, event.detail || '')),
-      el('td', { class: 'nowrap' }, event.scope === '公司' ? credibilityBadge(event.credibility) : el('span', { class: 'muted' }, event.importance ? '重要性 ' + event.importance : '')),
-      el('td', { class: 'nowrap' }, sourceLink(event.source_url, event.source_name))));
-    return [
-      el('h3', null, '事件日历', el('small', null, '今天起 14 天，含宏观')),
-      rows.length ? table(['日期', '范围', '事件', '可信度 / 重要性', '来源'], rows) : emptyNote(MISSING),
-    ];
-  }
-
-  function renderSources(stock) {
-    const seen = new Set(), unique = [];
-    const add = (url, name) => {
-      const key = url || name;
-      if (!key || seen.has(key)) return;
-      seen.add(key); unique.push({ url, name });
-    };
-    const addAll = (items) => { for (const item of items || []) for (const source of item.sources || []) add(source.url, source.name); };
-    for (const side of ['bull', 'bear']) addAll((stock[side] || {}).points);
-    addAll((stock.bear || {}).general_risks);
-    addAll(stock.earnings);
-    addAll((stock.sector || {}).items);
-    for (const item of [].concat((stock.overnight || {}).items || [], stock.news || [], stock.calendar || [])) {
-      if (item.source_url) add(item.source_url, item.source_name);
-    }
-    return unique.length ? el('ol', { class: 'refs' }, unique.map((source) => el('li', null, sourceLink(source.url, source.name || source.url)))) : emptyNote(MISSING);
+      .sort(byEventDate).map((event) => eventRow(event, true));
+    return block('事件日历', '未来 14 天，含宏观', events.length ? el('div', { class: 'rows' }, events) : empty(MISSING));
   }
 
   function renderStockPage(stock) {
     const market = SYMBOLS[stock.ticker] || {};
     const sector = stock.sector || {};
     return [
-      renderStockHead(stock, market),
-      section('01', '今日分析', null,
-        renderTendency(stock), renderScenarios(stock), renderPriceAction(stock), renderTechnical(stock, market)),
-      section('02', '多空对照', stock.earnings_mode && '财报时点：' + stock.earnings_mode + (stock.earnings_mode_basis ? '（' + stock.earnings_mode_basis + '）' : ''),
+      el('header', { class: 'page-head' }, el('h1', null, stock.ticker, el('span', { class: 'name' }, stock.name || market.name || ''))),
+      section('今日分析', null, renderBrief(stock), renderPriceAction(stock), renderTechnical(stock, market)),
+      section('多空对照', stock.earnings_mode && '财报时点：' + stock.earnings_mode + (stock.earnings_mode_basis ? '（' + stock.earnings_mode_basis + '）' : ''),
         el('div', { class: 'case-grid' }, renderCase(stock, 'bull'), renderCase(stock, 'bear')),
-        el('h3', null, stock.earnings_mode === '财报前' ? '财报前专项' : '财报专项', el('small', null, '多空共用的事实')),
-        itemTable(stock.earnings),
-        el('h3', null, '板块与行业', el('small', null, '把公司的问题和环境的问题分开')),
-        sector.driver && el('div', { class: 'callout' }, el('b', null, '近期走势的主要驱动：'), sector.driver),
-        itemTable(sector.items)),
-      section('03', '新闻与日历', null, renderOvernight(stock), renderNews(stock), renderCalendar(stock)),
-      section('04', '来源', null, renderSources(stock)),
-      disclaimer(),
+        renderEarnings(stock, market),
+        block('板块与行业', '把公司的问题和环境的问题分开',
+          sector.driver && el('div', { class: 'callout' }, el('b', null, '近期走势的主要驱动：'), inline(sector.driver)),
+          facts(sector.items) || empty(MISSING))),
+      section('新闻与日历', null, renderOvernight(stock), renderNews(stock), renderCalendar(stock)),
     ];
   }
 
