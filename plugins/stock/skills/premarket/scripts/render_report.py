@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,9 @@ LEVELS = {"公司", "板块", "宏观"}
 DIRECTIONS = {"利多", "利空"}
 MARKET_DIRECTIONS = {*DIRECTIONS, "中性"}
 PATTERN_STATUSES = {"明确", "疑似"}
+LEANS = {"偏多", "偏空", "中性"}
+REPORT_TIMINGS = {"盘前", "盘后"}
+DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 NEWS_CATEGORIES = {
     "运营事件与日程",
     "合同与合作",
@@ -84,12 +88,8 @@ def find_invalid_values(
 
 
 def find_macro_problems(macro: dict[str, Any]) -> list[str]:
-    problems: list[str] = []
-    if not (macro.get("rates") or {}).get("conclusion"):
-        problems.append("macro.rates.conclusion 为空；查不到就写「未找到」")
-
     news = macro.get("news") or []
-    problems += find_invalid_values("macro.news", news, "market_impact", MARKET_DIRECTIONS)
+    problems = find_invalid_values("macro.news", news, "market_impact", MARKET_DIRECTIONS)
     for index, item in enumerate(news, start=1):
         industries = item.get("industries") or []
         section = f"macro.news 第 {index} 条的 industries"
@@ -97,9 +97,17 @@ def find_macro_problems(macro: dict[str, Any]) -> list[str]:
             problems.append(f"{section} 最多 {MAX_INDUSTRIES} 个")
         problems += find_invalid_values(section, industries, "impact", DIRECTIONS)
 
+    calendar = macro.get("calendar") or []
+    problems += find_invalid_values("macro.calendar", calendar, "importance", GRADES)
     problems += find_invalid_values(
-        "macro.calendar", macro.get("calendar") or [], "importance", GRADES
+        "macro.calendar", calendar, "market_impact", MARKET_DIRECTIONS
     )
+    for index, event in enumerate(calendar, start=1):
+        industries = event.get("industries") or []
+        section = f"macro.calendar 第 {index} 条的 industries"
+        if len(industries) > MAX_INDUSTRIES:
+            problems.append(f"{section} 最多 {MAX_INDUSTRIES} 个")
+        problems += find_invalid_values(section, industries, "impact", MARKET_DIRECTIONS)
     return problems
 
 
@@ -115,6 +123,25 @@ def find_case_problems(ticker: str, side: str, case: dict[str, Any]) -> list[str
     problems += find_invalid_values(f"{prefix}.points", points, "level", LEVELS)
     problems += find_invalid_values(f"{prefix}.points", points, "impact", GRADES)
     problems += find_invalid_values(f"{prefix}.points", points, "priced_in", PRICED_IN)
+    return problems
+
+
+def find_earnings_problems(ticker: str, earnings: dict[str, Any]) -> list[str]:
+    prefix = f"{ticker}.earnings"
+    problems: list[str] = []
+    if not DATE_PATTERN.fullmatch(str(earnings.get("report_date", ""))):
+        problems.append(f"{prefix}.report_date 必须是 YYYY-MM-DD")
+    if earnings.get("report_timing") not in REPORT_TIMINGS:
+        problems.append(f"{prefix}.report_timing 必须是 {sorted(REPORT_TIMINGS)} 之一")
+    if not earnings.get("scorecard"):
+        problems.append(f"{prefix}.scorecard 为空；至少要有营收和 EPS")
+
+    items = earnings.get("items") or []
+    problems += find_invalid_values(f"{prefix}.items", items, "lean", LEANS)
+    for index, item in enumerate(items, start=1):
+        for side in ("bull", "bear"):
+            if not item.get(side):
+                problems.append(f"{prefix}.items 第 {index} 条: 缺少 {side}；查不到就写「未找到」")
     return problems
 
 
@@ -139,10 +166,16 @@ def find_stock_problems(stock: dict[str, Any], market_symbols: dict[str, Any]) -
     for side in ("bull", "bear"):
         problems += find_case_problems(ticker, side, stock.get(side) or {})
 
+    earnings = stock.get("earnings")
+    if isinstance(earnings, dict):
+        problems += find_earnings_problems(ticker, earnings)
+    else:
+        problems.append(f"{ticker}.earnings 必须是对象，结构见 SKILL.md 第 4 步")
+        earnings = {}
     mode = stock.get("earnings_mode")
     if mode in EARNINGS_ITEMS_BY_MODE:
         problems += find_missing_items(
-            f"{ticker}.earnings", stock.get("earnings") or [], EARNINGS_ITEMS_BY_MODE[mode]
+            f"{ticker}.earnings.items", earnings.get("items") or [], EARNINGS_ITEMS_BY_MODE[mode]
         )
     else:
         problems.append(
@@ -195,8 +228,9 @@ def sort_fixed_items(report: dict[str, Any]) -> None:
     for stock in report["stocks"]:
         sector = stock.setdefault("sector", {})
         sector["items"] = sort_by_canonical_order(sector.get("items") or [], SECTOR_ITEMS)
-        stock["earnings"] = sort_by_canonical_order(
-            stock.get("earnings") or [], EARNINGS_ITEMS_BY_MODE[stock["earnings_mode"]]
+        earnings = stock["earnings"]
+        earnings["items"] = sort_by_canonical_order(
+            earnings.get("items") or [], EARNINGS_ITEMS_BY_MODE[stock["earnings_mode"]]
         )
 
 
