@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盘前简报</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f3f5f7; --border: #d9dee3;
+    --text: #1f2328; --muted: #5d6670; --accent: #0969da; --accent-soft: #ddf4ff;
+    --warn: #9a6700; --warn-soft: #fff8c5; --flat: #6e7781;
+    /* 默认绿涨红跌：绿色是涨和利多，红色是跌和利空。侧边栏按钮切换到红涨绿跌 */
+    --up: #1a7f37; --up-soft: #dafbe1; --down: #cf222e; --down-soft: #ffebe9;
+  }
+  :root[data-colors="cn"] { --up: #cf222e; --up-soft: #ffebe9; --down: #1a7f37; --down-soft: #dafbe1; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--flat); }
+
+  .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--panel);
+    border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .brand { padding: 0 10px 14px; }
+  .brand .title { font-weight: 700; font-size: 17px; }
+  .brand .meta { color: var(--muted); font-size: 12px; }
+  .nav-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px; border-radius: 8px; color: var(--text); white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--panel-2); text-decoration: none; }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent); }
+  .nav-item .label { font-weight: 600; }
+  .nav-item .side { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .nav-sep { height: 1px; background: var(--border); margin: 6px 10px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+  .nav-foot { margin-top: auto; padding: 14px 4px 0; }
+  .toggle {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+    color: var(--text); font: inherit; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+  }
+  .toggle:hover { border-color: var(--accent); }
+  .swatch { display: inline-flex; gap: 3px; align-items: center; }
+  .swatch i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+  main { padding: 28px 36px 72px; max-width: 1200px; width: 100%; }
+  .page-head h1 { margin: 0; font-size: 26px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .page-head h1 .name { font-size: 15px; font-weight: 400; color: var(--muted); }
+  .page-head .meta { color: var(--muted); margin-top: 4px; font-size: 13px; }
+  .head-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .quote { display: flex; gap: 32px; margin: 14px 0 0; flex-wrap: wrap; }
+  .quote .label { color: var(--muted); font-size: 12px; }
+  .quote .big { font-size: 22px; font-weight: 600; margin-right: 6px; }
+  .key-points { margin-top: 16px; }
+  .key-points ul { margin: 4px 0 0; padding-left: 18px; }
+  .disclaimer { margin-top: 48px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+
+  .section { margin-top: 40px; }
+  .section > h2 {
+    font-size: 20px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--text);
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  .section > h2 .no { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+  h2 small, h3 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+  h3 { font-size: 16px; margin: 26px 0 10px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .label { color: var(--muted); font-size: 12px; }
+  .caption { font-size: 12.5px; color: var(--muted); margin: 6px 0 4px; }
+  .callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 12px; }
+
+  .badge {
+    display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; line-height: 20px;
+    border: 1px solid var(--border); color: var(--muted); background: var(--panel); white-space: nowrap;
+  }
+  .badge.bull { color: var(--up); border-color: var(--up); background: var(--up-soft); }
+  .badge.bear { color: var(--down); border-color: var(--down); background: var(--down-soft); }
+  .badge.neutral { color: var(--flat); }
+  .badge.caution { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+  .badge.official { color: var(--accent); border-color: var(--accent); }
+  .badge.rumor { color: var(--warn); border-color: var(--warn); }
+  .badge.tendency { font-size: 14px; padding: 2px 14px; font-weight: 600; }
+  .nav-item .badge { font-size: 11px; padding: 0 7px; line-height: 18px; }
+
+  .tag {
+    display: inline-block; font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: 4px;
+    border: 1px solid var(--border); color: var(--muted); white-space: nowrap;
+  }
+  .tag.level { border-color: var(--accent); color: var(--accent); }
+  .tag.priced-none { background: var(--text); border-color: var(--text); color: #fff; }
+  .tag.priced-part { border-color: var(--text); color: var(--text); }
+  .tag.priced-full { background: var(--panel-2); }
+  .bull .tag.grade-high { background: var(--up); border-color: var(--up); color: #fff; }
+  .bull .tag.grade-mid { background: var(--up-soft); border-color: var(--up); color: var(--up); }
+  .bull .tag.grade-low { border-color: var(--up-soft); color: var(--up); }
+  .bear .tag.grade-high { background: var(--down); border-color: var(--down); color: #fff; }
+  .bear .tag.grade-mid { background: var(--down-soft); border-color: var(--down); color: var(--down); }
+  .bear .tag.grade-low { border-color: var(--down-soft); color: var(--down); }
+
+  .impact { display: inline-block; padding: 1px 9px; border-radius: 4px; font-size: 12.5px; line-height: 20px; margin: 2px 4px 2px 0; border: 1px solid transparent; }
+  .impact.pos { background: var(--up-soft); color: var(--up); border-color: var(--up); }
+  .impact.neg { background: var(--down-soft); color: var(--down); border-color: var(--down); }
+  .impact.neu { background: var(--panel-2); color: var(--muted); border-color: var(--border); }
+  .impact.market { font-weight: 700; }
+  .impacts { margin-top: 6px; }
+
+  .chart { width: 100%; height: 520px; }
+  .chart.compare { height: 300px; }
+  .chart-missing { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .tile .value { font-size: 18px; font-weight: 600; margin: 2px 0; }
+  .tile .verdict { font-size: 13px; }
+  .tile .plain { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .table-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 500; font-size: 12.5px; white-space: nowrap; background: var(--panel-2); }
+  td.nowrap { white-space: nowrap; }
+  td.item { font-weight: 600; white-space: nowrap; }
+  .item-title { font-weight: 600; }
+  .item-detail { color: var(--muted); font-size: 13px; }
+  .sources { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+  .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .scenario h4 { margin: 0 0 8px; font-size: 15px; }
+  .scenario.bull { border-top: 3px solid var(--up); }
+  .scenario.bear { border-top: 3px solid var(--down); }
+  .scenario ul { margin: 0; padding-left: 18px; }
+  .scenario li { margin: 6px 0; }
+  .tendency-card .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tendency-card .caution-line { margin-top: 8px; color: var(--warn); }
+
+  .case-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .case { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .case.bull { border-top: 4px solid var(--up); }
+  .case.bear { border-top: 4px solid var(--down); }
+  .case-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .case-title { font-size: 19px; font-weight: 700; }
+  .case.bull .case-title, .case.bull .rank { color: var(--up); }
+  .case.bear .case-title, .case.bear .rank { color: var(--down); }
+  .case h3 { margin-top: 20px; }
+  .top-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 6px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .top-item:last-child { border-bottom: 0; }
+  .top-item .rank { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .top-item .title { font-weight: 600; margin-right: 6px; }
+  .matrix { display: grid; grid-template-columns: 64px repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 12.5px; }
+  .matrix > div { padding: 6px 8px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .matrix > div:nth-child(4n) { border-right: 0; }
+  .matrix > div:nth-last-child(-n + 4) { border-bottom: 0; }
+  .matrix .head { color: var(--muted); background: var(--panel-2); }
+  .matrix .cell { min-height: 44px; }
+  .bull .matrix .cell.weight-4 { background: var(--up-soft); }
+  .bull .matrix .cell.weight-3 { background: color-mix(in srgb, var(--up-soft) 45%, var(--panel)); }
+  .bear .matrix .cell.weight-4 { background: var(--down-soft); }
+  .bear .matrix .cell.weight-3 { background: color-mix(in srgb, var(--down-soft) 45%, var(--panel)); }
+  .chip { display: block; line-height: 1.45; margin: 2px 0; }
+  .chip b { color: var(--muted); margin-right: 4px; font-weight: 600; }
+  .point { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .point:last-child { border-bottom: 0; }
+  .point .title { font-weight: 600; }
+  .point .title b { color: var(--muted); margin-right: 6px; }
+  .point .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+  .falsifier { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .falsifier:last-child { border-bottom: 0; }
+  .falsifier .signal { font-weight: 600; }
+  .falsifier .check { font-size: 13px; color: var(--muted); }
+  ol.refs { margin: 0; padding-left: 22px; font-size: 13.5px; }
+
+  @media (max-width: 1080px) {
+    .case-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .sidebar {
+      height: auto; flex-direction: row; align-items: center; overflow-x: auto; z-index: 10;
+      border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 16px; gap: 4px;
+    }
+    .brand, .nav-sep { display: none; }
+    .nav-item, .nav-foot { flex: none; }
+    .nav-foot { margin: 0 0 0 auto; padding: 0; }
+    main { padding: 20px 16px 56px; }
+    .chart { height: 440px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout" id="app"></div>
+<script id="report-data" type="application/json">__REPORT_DATA__</script>
+<script>
+(function () {
+  'use strict';
+  const DATA = JSON.parse(document.getElementById('report-data').textContent);
+  const REPORT = DATA.report;
+  const MACRO = REPORT.macro || {};
+  const STOCKS = REPORT.stocks || [];
+  const SYMBOLS = (DATA.market && DATA.market.symbols) || {};
+  const INDEX_SYMBOLS = ['^GSPC', '^IXIC'];
+  const RECENT_DAYS = 14;
+  const MISSING = '未找到';
+  const MACRO_ROUTE = 'macro';
+  const SCHEME_KEY = 'premarket-color-scheme';
+  const SCHEME_LABEL = { us: '绿涨红跌', cn: '红涨绿跌' };
+  const CATEGORY_ORDER = ['运营事件与日程', '合同与合作', '官方披露', '管理层言论', '分析师动作', '资金面', '监管与法律', '竞争对手与上下游'];
+  const GRADES = ['高', '中', '低'];
+  const PRICED = ['未计价', '部分', '已计价'];
+  const PRICED_LABEL = { '未计价': '未计价', '部分': '部分计价', '已计价': '已计价' };
+  const PRICED_CLASS = { '未计价': 'priced-none', '部分': 'priced-part', '已计价': 'priced-full' };
+  const GRADE_CLASS = { '高': 'grade-high', '中': 'grade-mid', '低': 'grade-low' };
+  const DIRECTION_CLASS = { '利多': 'pos', '利空': 'neg', '中性': 'neu' };
+  const SIDES = {
+    bull: {
+      title: 'Bull case', subtitle: '市场可能低估的利多', topTitle: '市场最看好的 Top 3', topEmpty: '没有找到市场明确看好的理由。',
+      listTitle: '利多清单', gradeLabel: '力度', listEmpty: '认真查过之后，没有找到有实质内容的利多。',
+      caption: '越靠左上越值得重视：力度大，而且市场还没有把它算进股价。已经充分计价的利多不再是买入理由。',
+      falsifierNote: '出现这些信号，说明上面的利多不成立',
+    },
+    bear: {
+      title: 'Bear case', subtitle: '市场可能不买账的原因', topTitle: '市场最担心的 Top 3', topEmpty: '没有找到市场明确在担心的问题。',
+      listTitle: '利空清单', gradeLabel: '严重度', listEmpty: '认真查过之后，没有找到有实质内容的利空。',
+      caption: '越靠左上越要警惕：后果严重，而且市场还没有把它算进股价。已经充分计价的利空并不可怕。',
+      falsifierNote: '出现这些信号，说明上面的利空不成立',
+    },
+  };
+
+  let colors = {};
+  let charts = [];
+  let pendingCharts = [];
+
+  // ---------- 通用 ----------
+  function el(tag, attrs, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+      if (value === null || value === undefined || value === false) continue;
+      if (key === 'class') node.className = value; else node.setAttribute(key, value);
+    }
+    for (const child of children.flat(Infinity)) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  }
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function isNumber(value) { return typeof value === 'number' && isFinite(value); }
+  function price(value) { return isNumber(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : MISSING; }
+  function signClass(value) { return !isNumber(value) || value === 0 ? 'flat' : value > 0 ? 'up' : 'down'; }
+  function pct(value) { return isNumber(value) ? (value > 0 ? '+' : '') + value.toFixed(2) + '%' : MISSING; }
+  function pctNode(value) { return el('span', { class: 'num ' + signClass(value) }, pct(value)); }
+  function isHttpUrl(url) { return typeof url === 'string' && /^https?:\/\//i.test(url); }
+  function sourceLink(url, name) {
+    if (!isHttpUrl(url)) return el('span', { class: 'muted' }, name || MISSING);
+    return el('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, name || '来源');
+  }
+  function sourceLine(sources) {
+    if (!sources || !sources.length) return null;
+    const parts = [];
+    sources.forEach((source, index) => { if (index) parts.push(' · '); parts.push(sourceLink(source.url, source.name || source.url)); });
+    return el('div', { class: 'sources' }, '来源：', parts);
+  }
+  function credibilityBadge(value) {
+    const kind = value === '官方确认' ? 'official' : value === '传闻' ? 'rumor' : '';
+    return el('span', { class: 'badge ' + kind }, value || MISSING);
+  }
+  function tendencyBadge(value, compact) {
+    const kind = value === '偏多' ? 'bull' : value === '偏空' ? 'bear' : 'neutral';
+    return el('span', { class: 'badge ' + kind + (compact ? '' : ' tendency') }, value || '无倾向');
+  }
+  function cautionBadge() { return el('span', { class: 'badge caution' }, '今日不宜动手'); }
+  function pricedTag(value) { return el('span', { class: 'tag ' + (PRICED_CLASS[value] || '') }, PRICED_LABEL[value] || value || MISSING); }
+  function list(items) { return el('ul', null, (items || []).map((item) => el('li', null, item))); }
+  function table(headers, rows) {
+    return el('div', { class: 'table-scroll' }, el('table', null,
+      el('thead', null, el('tr', null, headers.map((header) => el('th', null, header)))),
+      el('tbody', null, rows)));
+  }
+  function itemTable(items) {
+    return table(['项目', '结论'], (items || []).map((item) => el('tr', null,
+      el('td', { class: 'item' }, item.item || ''),
+      el('td', null, item.conclusion || MISSING, sourceLine(item.sources)))));
+  }
+  function emptyNote(text) { return el('p', { class: 'muted' }, text); }
+  // 日期未定的事件排在最后
+  function byEventDate(a, b) { return (a.date ? 0 : 1) - (b.date ? 0 : 1) || String(a.date).localeCompare(String(b.date)); }
+  function section(no, title, subtitle, ...children) {
+    return el('section', { class: 'section' },
+      el('h2', null, el('span', { class: 'no' }, no), title, subtitle && el('small', null, subtitle)),
+      children);
+  }
+  function generatedMeta() {
+    return el('div', { class: 'meta' }, [REPORT.generated_at && '生成于 ' + REPORT.generated_at, REPORT.session_note].filter(Boolean).join(' · '));
+  }
+  function disclaimer() {
+    return el('p', { class: 'disclaimer' },
+      '方向倾向和多空判断未经验证，仅供参考，不构成买卖建议。行情来自 Yahoo Finance，约有 15 分钟延迟；新闻和数字来自联网搜索，以标注的来源和日期为准；“传闻”级别的消息未经证实。');
+  }
+
+  // ---------- 配色 ----------
+  function loadScheme() {
+    try { return localStorage.getItem(SCHEME_KEY) === 'cn' ? 'cn' : 'us'; } catch (error) { return 'us'; }
+  }
+  function saveScheme(scheme) {
+    // 存储不可用时（隐私模式等），切换只在本次打开期间有效
+    try { localStorage.setItem(SCHEME_KEY, scheme); } catch (error) { /* 见上 */ }
+  }
+  function applyScheme(scheme) {
+    if (scheme === 'cn') document.documentElement.setAttribute('data-colors', 'cn');
+    else document.documentElement.removeAttribute('data-colors');
+    const css = getComputedStyle(document.documentElement);
+    const read = (name) => css.getPropertyValue(name).trim();
+    colors = {
+      up: read('--up'), down: read('--down'), text: read('--text'), muted: read('--muted'),
+      border: read('--border'), accent: read('--accent'), warn: read('--warn'), panel: read('--panel'),
+    };
+  }
+  function currentScheme() { return document.documentElement.getAttribute('data-colors') === 'cn' ? 'cn' : 'us'; }
+
+  // ---------- 图表 ----------
+  const CHART_LIB_MISSING = '图表库加载失败（需要联网）';
+  function chartMissing(node, text) { node.classList.add('chart-missing'); node.textContent = text; }
+  function initChart(node) {
+    const chart = echarts.init(node, null, { renderer: 'canvas' });
+    charts.push(chart);
+    return chart;
+  }
+  function tooltipStyle() {
+    return { backgroundColor: colors.panel, borderColor: colors.border, textStyle: { color: colors.text }, extraCssText: 'box-shadow: 0 4px 14px rgba(0,0,0,.12);' };
+  }
+
+  function newsByTradingDay(news, dates) {
+    // 非交易日的新闻归到之后第一个交易日，那才是股价能反应的时点
+    const grouped = {};
+    for (const item of news || []) {
+      if (!item.date) continue;
+      const day = dates.find((date) => date >= item.date);
+      if (!day) continue;
+      (grouped[day] = grouped[day] || []).push(item);
+    }
+    return grouped;
+  }
+
+  function renderCandleChart(node, stock, market) {
+    if (typeof echarts === 'undefined') return chartMissing(node, CHART_LIB_MISSING);
+    const candles = market.candles || [];
+    if (!candles.length) return chartMissing(node, 'K 线数据' + MISSING);
+    const dates = candles.map((candle) => candle.date);
+    const grouped = newsByTradingDay(stock.news, dates);
+    const newsPoints = Object.keys(grouped).map((date) => {
+      const candle = candles[dates.indexOf(date)];
+      return { coord: [date, candle.high], value: grouped[date].length, news: grouped[date] };
+    });
+    const levels = [];
+    for (const level of market.indicators.support || []) levels.push({ yAxis: level.price, name: '支撑 ' + price(level.price), lineStyle: { color: colors.up } });
+    for (const level of market.indicators.resistance || []) levels.push({ yAxis: level.price, name: '压力 ' + price(level.price), lineStyle: { color: colors.down } });
+    const recentStart = dates[Math.max(0, dates.length - RECENT_DAYS)], recentEnd = dates[dates.length - 1];
+    // 标签放在线的外侧：最高价线之上、最低价线之下没有这 14 天的 K 线，不会互相遮挡
+    const recentExtreme = (extreme, name, color, position) => extreme && levels.push([
+      { coord: [recentStart, extreme.price], name: name + ' ' + price(extreme.price), lineStyle: { color, type: 'dotted', width: 1.5 }, label: { position } },
+      { coord: [recentEnd, extreme.price] },
+    ]);
+    recentExtreme(market.indicators.recent_high, '近14日最高', colors.down, 'insideStartTop');
+    recentExtreme(market.indicators.recent_low, '近14日最低', colors.up, 'insideStartBottom');
+    const maLine = (name, key, color) => ({
+      name, type: 'line', data: candles.map((candle) => candle[key]), showSymbol: false, smooth: false,
+      lineStyle: { width: 1.2, color }, itemStyle: { color }, connectNulls: false,
+    });
+    const startIndex = Math.max(0, candles.length - 60);
+    initChart(node).setOption({
+      backgroundColor: 'transparent', animation: false,
+      textStyle: { color: colors.text },
+      legend: { top: 0, textStyle: { color: colors.muted }, data: ['K 线', 'MA20', 'MA50', 'MA200'] },
+      axisPointer: { link: [{ xAxisIndex: 'all' }] },
+      tooltip: Object.assign(tooltipStyle(), {
+        trigger: 'axis', axisPointer: { type: 'cross' }, confine: true,
+        formatter: function (params) {
+          const candle = candles[params[0].dataIndex];
+          const lines = ['<b>' + candle.date + '</b>',
+            '开 ' + price(candle.open) + '　高 ' + price(candle.high) + '　低 ' + price(candle.low) + '　收 ' + price(candle.close),
+            '涨跌 ' + pct(candle.change_pct) + '　成交量 ' + (candle.volume / 1e6).toFixed(1) + 'M'];
+          for (const item of grouped[candle.date] || []) {
+            lines.push('<span style="color:' + colors.warn + '">●</span> ' + escapeHtml(item.title || '') + ' <span style="color:' + colors.muted + '">[' + escapeHtml(item.credibility || '') + ']</span>');
+          }
+          return '<div style="max-width:420px;white-space:normal">' + lines.join('<br>') + '</div>';
+        },
+      }),
+      grid: [{ left: 60, right: 80, top: 36, height: 320 }, { left: 60, right: 80, top: 386, height: 70 }],
+      xAxis: [
+        { type: 'category', data: dates, gridIndex: 0, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { show: false } },
+        { type: 'category', data: dates, gridIndex: 1, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { color: colors.muted } },
+      ],
+      yAxis: [
+        { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: colors.border, opacity: 0.6 } }, axisLabel: { color: colors.muted } },
+        { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
+      ],
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0, 1], startValue: startIndex, endValue: candles.length - 1 },
+        { type: 'slider', xAxisIndex: [0, 1], startValue: startIndex, endValue: candles.length - 1, bottom: 8, height: 22, textStyle: { color: colors.muted }, borderColor: colors.border },
+      ],
+      series: [
+        {
+          name: 'K 线', type: 'candlestick', data: candles.map((candle) => [candle.open, candle.close, candle.low, candle.high]),
+          itemStyle: { color: colors.up, color0: colors.down, borderColor: colors.up, borderColor0: colors.down },
+          markLine: { symbol: 'none', silent: true, data: levels, lineStyle: { type: 'dashed', width: 1 }, label: { formatter: '{b}', color: colors.muted, position: 'end' } },
+          markPoint: { symbol: 'pin', symbolSize: 34, data: newsPoints, itemStyle: { color: colors.warn }, label: { color: '#fff', fontSize: 11 } },
+          markArea: {
+            silent: true, itemStyle: { color: colors.accent, opacity: 0.06 }, label: { show: false },
+            data: [[{ xAxis: recentStart }, { xAxis: recentEnd }]],
+          },
+        },
+        maLine('MA20', 'sma20', '#bf8700'), maLine('MA50', 'sma50', '#0969da'), maLine('MA200', 'sma200', '#8250df'),
+        {
+          name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+          data: candles.map((candle) => ({ value: candle.volume, itemStyle: { color: candle.close >= candle.open ? colors.up : colors.down, opacity: 0.7 } })),
+        },
+      ],
+    });
+  }
+
+  // entries 是 [{ symbol, name }]，以第一个可用代码的最近 14 个交易日为基准算累计涨跌
+  function renderCompareChart(node, entries) {
+    if (typeof echarts === 'undefined') return chartMissing(node, CHART_LIB_MISSING);
+    const available = entries.filter((entry) => SYMBOLS[entry.symbol] && !SYMBOLS[entry.symbol].error && (SYMBOLS[entry.symbol].candles || []).length);
+    const base = available.length ? SYMBOLS[available[0].symbol].candles.slice(-(RECENT_DAYS + 1)) : [];
+    if (base.length < 2) return chartMissing(node, '对比数据' + MISSING);
+    const dates = base.map((candle) => candle.date);
+    const palette = ['#1f2328', '#0969da', '#8250df', '#bf8700'];
+    const series = available.map((entry, index) => {
+      const closes = {};
+      for (const candle of SYMBOLS[entry.symbol].candles) closes[candle.date] = candle.close;
+      const start = closes[dates[0]];
+      return {
+        name: entry.name, type: 'line', showSymbol: false, connectNulls: true,
+        lineStyle: { width: index === 0 ? 2.6 : 1.4, color: palette[index % palette.length] }, itemStyle: { color: palette[index % palette.length] },
+        data: dates.map((date) => (start && closes[date] ? +((closes[date] / start - 1) * 100).toFixed(2) : null)),
+      };
+    });
+    initChart(node).setOption({
+      backgroundColor: 'transparent', animation: false,
+      legend: { top: 0, textStyle: { color: colors.muted } },
+      tooltip: Object.assign(tooltipStyle(), { trigger: 'axis', valueFormatter: (value) => pct(value) }),
+      grid: { left: 60, right: 30, top: 36, bottom: 30 },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: colors.border } }, axisLabel: { color: colors.muted } },
+      yAxis: { type: 'value', axisLabel: { color: colors.muted, formatter: '{value}%' }, splitLine: { lineStyle: { color: colors.border, opacity: 0.6 } } },
+      series,
+    });
+  }
+  function indexEntries() {
+    return INDEX_SYMBOLS.map((symbol) => ({ symbol, name: (SYMBOLS[symbol] && SYMBOLS[symbol].name) || symbol }));
+  }
+
+  // ---------- 侧边栏 ----------
+  function navItem(route, label, side) {
+    return el('a', { class: 'nav-item', href: '#' + encodeURIComponent(route), 'data-route': route },
+      el('span', { class: 'label' }, label), el('span', { class: 'side' }, side));
+  }
+  function schemeSwatch(scheme) {
+    const [rise, fall] = scheme === 'cn' ? ['#cf222e', '#1a7f37'] : ['#1a7f37', '#cf222e'];
+    return el('span', { class: 'swatch' }, el('i', { style: 'background:' + rise }), el('i', { style: 'background:' + fall }));
+  }
+  function renderSidebar() {
+    const toggle = el('button', { class: 'toggle', type: 'button', title: '切换红绿配色' },
+      el('span', null, '配色：', SCHEME_LABEL[currentScheme()]), schemeSwatch(currentScheme()));
+    toggle.addEventListener('click', () => {
+      const next = currentScheme() === 'cn' ? 'us' : 'cn';
+      saveScheme(next);
+      applyScheme(next);
+      render(true);
+    });
+    return el('nav', { class: 'sidebar' },
+      el('div', { class: 'brand' }, el('div', { class: 'title' }, '盘前简报'), el('div', { class: 'meta' }, REPORT.date || '')),
+      navItem(MACRO_ROUTE, '宏观', el('span', { class: 'muted' }, (MACRO.news || []).length + ' 条')),
+      el('div', { class: 'nav-sep' }),
+      STOCKS.map((stock) => navItem(stock.ticker, stock.ticker, [
+        stock.caution && stock.caution.flag && el('span', { class: 'dot', title: '今日不宜动手' }),
+        tendencyBadge(stock.tendency, true),
+      ])),
+      el('div', { class: 'nav-foot' }, toggle));
+  }
+
+  // ---------- 宏观页 ----------
+  function impactChip(name, direction, extraClass) {
+    return el('span', { class: 'impact ' + (DIRECTION_CLASS[direction] || 'neu') + (extraClass ? ' ' + extraClass : ''), title: direction || '' }, name);
+  }
+  function impactLegend() {
+    return el('p', { class: 'caption' }, '底色：', impactChip('利多', '利多'), impactChip('利空', '利空'), impactChip('中性', '中性'),
+      '。第一个色块是对大盘的影响，后面是受影响最大的行业（最多 5 个）。');
+  }
+  function renderMacroPage() {
+    const indexTiles = INDEX_SYMBOLS.filter((symbol) => SYMBOLS[symbol] && !SYMBOLS[symbol].error).map((symbol) => {
+      const data = SYMBOLS[symbol];
+      return el('div', { class: 'tile' },
+        el('div', { class: 'label' }, data.name + ' · ' + data.last_date),
+        el('div', { class: 'value num' }, price(data.last_close), ' ', pctNode(data.last_change_pct)),
+        el('div', { class: 'verdict' }, '近 14 个交易日 ', pctNode(data.indicators.change_14d_pct)));
+    });
+    const chartNode = el('div', { class: 'chart compare' });
+    pendingCharts.push(() => renderCompareChart(chartNode, indexEntries()));
+
+    const newsRows = (MACRO.news || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map((item) => el('tr', null,
+      el('td', { class: 'nowrap num' }, item.date || ''),
+      el('td', null,
+        el('div', { class: 'item-title' }, item.title || ''),
+        el('div', { class: 'item-detail' }, item.detail || ''),
+        el('div', { class: 'impacts' }, impactChip('大盘', item.market_impact, 'market'),
+          (item.industries || []).map((industry) => impactChip(industry.name || '', industry.impact)))),
+      el('td', { class: 'nowrap' }, sourceLink(item.source_url, item.source_name))));
+
+    const rates = MACRO.rates || {};
+    const calendarRows = (MACRO.calendar || []).slice().sort(byEventDate).map((event) => el('tr', null,
+      el('td', { class: 'nowrap num' }, event.date || '日期未定'),
+      el('td', null, el('div', { class: 'item-title' }, event.event || ''), el('div', { class: 'item-detail' }, event.detail || '')),
+      el('td', { class: 'nowrap' }, event.importance || ''),
+      el('td', { class: 'nowrap' }, sourceLink(event.source_url, event.source_name))));
+
+    return [
+      el('header', { class: 'page-head' }, el('h1', null, '宏观', el('span', { class: 'name' }, REPORT.date || '')), generatedMeta()),
+      section('01', '大盘近况', '近 14 个交易日',
+        el('div', { class: 'tiles' }, indexTiles),
+        MACRO.summary && el('p', null, MACRO.summary),
+        el('div', { class: 'panel' }, chartNode)),
+      section('02', '宏观消息', '过去 14 天',
+        impactLegend(),
+        newsRows.length ? table(['日期', '消息与影响', '来源'], newsRows) : emptyNote('近期宏观消息：' + MISSING)),
+      section('03', '货币政策与利率', '美联储、议息预期、10 年期美债',
+        el('div', { class: 'panel' }, el('p', null, rates.conclusion || MISSING), sourceLine(rates.sources))),
+      section('04', '宏观日历', '今天起 14 天',
+        calendarRows.length ? table(['日期', '事件', '重要性', '来源'], calendarRows) : emptyNote(MISSING)),
+      disclaimer(),
+    ];
+  }
+
+  // ---------- 个股页：页头 ----------
+  function extendedLabel(extended) { return extended.session === 'pre' ? '盘前' : '盘后'; }
+  function renderStockHead(stock, market) {
+    const extended = market.extended;
+    return el('header', { class: 'page-head' },
+      el('h1', null, stock.ticker, el('span', { class: 'name' }, stock.name || market.name || '')),
+      generatedMeta(),
+      el('div', { class: 'head-badges' },
+        tendencyBadge(stock.tendency),
+        stock.caution && stock.caution.flag && cautionBadge(),
+        stock.earnings_mode && el('span', { class: 'badge' }, stock.earnings_mode)),
+      market.error || !isNumber(market.last_close)
+        ? emptyNote('行情数据获取失败。' + (stock.price_data_note || ''))
+        : el('div', { class: 'quote' },
+          el('div', null, el('div', { class: 'label' }, '上一收盘 ' + (market.last_date || '')),
+            el('span', { class: 'big num' }, price(market.last_close)), pctNode(market.last_change_pct)),
+          extended && el('div', null, el('div', { class: 'label' }, extendedLabel(extended) + ' ' + extended.time_et + ' ET'),
+            el('span', { class: 'big num' }, price(extended.price)), pctNode(extended.change_pct))),
+      (stock.key_points || []).length ? el('div', { class: 'panel key-points' },
+        el('div', { class: 'label' }, '今天最重要的事'), list(stock.key_points)) : null);
+  }
+
+  // ---------- 个股页：今日分析 ----------
+  function renderTendency(stock) {
+    const caution = stock.caution || {};
+    return el('div', { class: 'panel tendency-card' },
+      el('div', { class: 'row' }, el('span', { class: 'label' }, '方向倾向'), tendencyBadge(stock.tendency)),
+      el('p', null, stock.tendency_reason || ''),
+      caution.flag && el('div', { class: 'caution-line' }, cautionBadge(), ' ', caution.reason || ''));
+  }
+
+  function renderScenarios(stock) {
+    const scenarios = stock.scenarios || {};
+    const column = (title, kind, items) => el('div', { class: 'panel scenario ' + kind },
+      el('h4', null, title),
+      (items || []).length ? el('ul', null, items.map((item) => el('li', null, el('div', null, item.condition || ''), el('div', { class: 'item-detail' }, '盯：' + (item.signal || MISSING))))) : emptyNote(MISSING));
+    return [
+      el('h3', null, '今天的情景'),
+      el('div', { class: 'two-col' }, column('偏利好的情况', 'bull', scenarios.bullish), column('偏利空的情况', 'bear', scenarios.bearish)),
+    ];
+  }
+
+  function renderPriceAction(stock) {
+    const rows = (stock.price_action || []).map((item) => el('tr', null,
+      el('td', { class: 'nowrap num' }, item.period || ''),
+      el('td', { class: 'nowrap' }, pctNode(item.move_pct)),
+      el('td', null, item.explanation || ''),
+      el('td', { class: 'nowrap' }, item.driver || '')));
+    return [
+      el('h3', null, '走势与消息对照', el('small', null, '近 14 个交易日')),
+      rows.length ? table(['时间', '涨跌', '对应的消息与归因', '主要驱动'], rows) : emptyNote(MISSING),
+    ];
+  }
+
+  // 指标的解释文字固定在模板里，保证每次措辞一致
+  function tile(label, valueNode, verdict, plain) {
+    return el('div', { class: 'tile' }, el('div', { class: 'label' }, label), el('div', { class: 'value num' }, valueNode),
+      verdict && el('div', { class: 'verdict' }, verdict), el('div', { class: 'plain' }, plain));
+  }
+  function maVerdict(close, average, label) {
+    if (!isNumber(average)) return el('span', { class: 'muted' }, label + ' 数据不足');
+    const above = close >= average;
+    return el('span', { class: above ? 'up' : 'down' }, (above ? '高于 ' : '低于 ') + label + '（' + price(average) + '）');
+  }
+  function levelText(levels) {
+    if (!levels || !levels.length) return '未识别到';
+    return levels.map((level) => price(level.price) + '（触及 ' + level.touches + ' 次）').join('、');
+  }
+  function extremeText(label, extreme) {
+    return extreme ? label + ' ' + price(extreme.price) + '（' + extreme.date.slice(5) + '）' : null;
+  }
+  function renderIndicatorTiles(market) {
+    const ind = market.indicators, close = market.last_close;
+    const rsi = ind.rsi14;
+    const rsiVerdict = !isNumber(rsi) ? MISSING : rsi >= 70 ? '超买区：短期涨得急，容易回调' : rsi <= 30 ? '超卖区：短期跌得急，容易反弹' : '中性区间';
+    const volume = ind.volume_ratio;
+    const volumeVerdict = !isNumber(volume) ? MISSING : volume >= 1.5 ? '明显放量：这一天的涨跌有资金认可' : volume <= 0.7 ? '缩量：参与的人少，涨跌的说服力弱' : '成交量正常';
+    const gaps = ind.gaps || [];
+    const gapText = gaps.length ? gaps.map((gap) => gap.date.slice(5) + (gap.direction === 'up' ? ' 向上' : ' 向下') + (gap.filled ? '（已回补）' : '（未回补）')).join('、') : '近 14 个交易日无缺口';
+    return el('div', { class: 'tiles' },
+      tile('近 14 个交易日涨跌', pctNode(ind.change_14d_pct), null, '从 14 个交易日前的收盘价到最新收盘价的累计变化。'),
+      tile('短期趋势 · 20 日均线', price(ind.sma20), maVerdict(close, ind.sma20, 'MA20'), '最近 20 天的平均成本。股价在它上方说明短期买的人多数赚钱，趋势偏强。'),
+      tile('中期趋势 · 50 日均线', price(ind.sma50), maVerdict(close, ind.sma50, 'MA50'), '最近 50 天的平均成本，机构常用来判断中期趋势。'),
+      tile('长期趋势 · 200 日均线', price(ind.sma200), maVerdict(close, ind.sma200, 'MA200'), '近一年的平均成本，常被当作牛熊分界线。上市不满 200 天则没有这个值。'),
+      tile('RSI（14 日）', isNumber(rsi) ? rsi.toFixed(1) : MISSING, rsiVerdict, '衡量最近涨得急不急的指标，0 到 100。高于 70 算过热，低于 30 算过冷。'),
+      tile('成交量 / 20 日均量', isNumber(volume) ? volume.toFixed(2) + ' 倍' : MISSING, volumeVerdict, '最新一天的成交量是平时的几倍。放量的涨跌比缩量的更可信。'),
+      tile('支撑位', levelText(ind.support), extremeText('近 14 日最低', ind.recent_low), '过去多次跌到这里就被买回去的价位，跌破它通常会加速下跌。近 14 日最低价只出现过一次，仅作参考。'),
+      tile('压力位', levelText(ind.resistance), extremeText('近 14 日最高', ind.recent_high), '过去多次涨到这里就被卖下来的价位，放量突破它通常是强势信号。近 14 日最高价只出现过一次，仅作参考。'),
+      tile('距 52 周高点', pctNode(ind.pct_from_week52_high), '52 周区间 ' + price(ind.week52_low) + ' – ' + price(ind.week52_high), '当前价格离过去一年最高价有多远。'),
+      tile('跳空缺口', el('span', { style: 'font-size:14px' }, gapText), null, '开盘价直接跳过前一天的价格区间，中间没有成交。未回补的缺口常被当作之后的支撑或压力。'));
+  }
+
+  function renderTechnical(stock, market) {
+    const technical = stock.technical || {};
+    const head = [
+      el('h3', null, '技术分析', el('small', null, '描述现状和关键价位，不是预测依据')),
+      technical.summary && el('p', null, technical.summary),
+    ];
+    if (market.error || !market.candles) {
+      return head.concat(emptyNote('行情数据获取失败，图表和技术指标不可用。' + (stock.price_data_note || '')));
+    }
+    const candleNode = el('div', { class: 'chart' });
+    const compareNode = el('div', { class: 'chart compare' });
+    const compareEntries = [{ symbol: stock.ticker, name: stock.ticker }]
+      .concat(stock.sector_etf ? [{ symbol: stock.sector_etf, name: stock.sector_etf + '（板块）' }] : [])
+      .concat(indexEntries());
+    // ECharts 要在容器进入页面、有尺寸之后才能初始化
+    pendingCharts.push(() => { renderCandleChart(candleNode, stock, market); renderCompareChart(compareNode, compareEntries); });
+    const patternRows = (technical.patterns || []).map((pattern) => el('tr', null,
+      el('td', { class: 'nowrap' }, el('span', { class: 'item-title' }, pattern.name || '')),
+      el('td', { class: 'nowrap' }, el('span', { class: 'badge ' + (pattern.status === '明确' ? 'official' : 'rumor') }, pattern.status || '疑似')),
+      el('td', null, el('div', null, pattern.plain || ''), el('div', { class: 'item-detail' }, '依据：' + (pattern.basis || MISSING)))));
+    return head.concat(
+      el('h3', null, 'K 线', el('small', null, '图钉是新闻，悬停查看；虚线是支撑位和压力位；阴影是近 14 个交易日，点线是这期间的最高价和最低价；可拖动下方滑块看 6 个月')),
+      el('div', { class: 'panel' }, candleNode),
+      el('h3', null, '相对表现', el('small', null, '近 14 个交易日累计涨跌，对比板块和大盘')),
+      el('div', { class: 'panel' }, compareNode),
+      el('h3', null, '指标'),
+      renderIndicatorTiles(market),
+      el('h3', null, '形态', el('small', null, '形态判断带主观成分')),
+      patternRows.length ? table(['形态', '把握', '含义与依据'], patternRows) : emptyNote('无明显形态。'));
+  }
+
+  // ---------- 个股页：多空对照 ----------
+  function rankPoints(points) {
+    const weight = (point) => (2 - GRADES.indexOf(point.impact)) + (2 - PRICED.indexOf(point.priced_in));
+    return (points || []).map((point, index) => ({ point, index }))
+      .sort((a, b) => weight(b.point) - weight(a.point) || GRADES.indexOf(a.point.impact) - GRADES.indexOf(b.point.impact) || a.index - b.index)
+      .map((entry, position) => Object.assign({ number: position + 1 }, entry.point));
+  }
+  function renderMatrix(points, meta) {
+    const matrix = el('div', { class: 'matrix' }, el('div', { class: 'head' }, meta.gradeLabel), PRICED.map((priced) => el('div', { class: 'head' }, PRICED_LABEL[priced])));
+    GRADES.forEach((grade, row) => {
+      matrix.append(el('div', { class: 'head' }, grade));
+      PRICED.forEach((priced, column) => {
+        const here = points.filter((point) => point.impact === grade && point.priced_in === priced);
+        matrix.append(el('div', { class: 'cell weight-' + ((2 - row) + (2 - column)) },
+          here.map((point) => el('span', { class: 'chip' }, el('b', null, '#' + point.number), point.title || ''))));
+      });
+    });
+    return matrix;
+  }
+  function renderCase(stock, side) {
+    const meta = SIDES[side];
+    const data = stock[side] || {};
+    const top = data.top || [];
+    const points = rankPoints(data.points);
+    const falsifiers = data.falsifiers || [];
+    return el('div', { class: 'case ' + side },
+      el('div', { class: 'case-head' }, el('span', { class: 'case-title' }, meta.title), el('span', { class: 'muted' }, meta.subtitle)),
+      el('h3', null, meta.topTitle),
+      top.length ? top.map((item, index) => el('div', { class: 'top-item' },
+        el('div', { class: 'rank' }, index + 1),
+        el('div', null,
+          el('div', null, el('span', { class: 'title' }, item.title || ''), el('span', { class: 'tag level' }, item.level || MISSING)),
+          el('div', { class: 'item-detail' }, item.detail || ''))))
+        : emptyNote(meta.topEmpty),
+      el('h3', null, meta.listTitle, points.length ? el('small', null, '共 ' + points.length + ' 条，按重要程度排序') : null),
+      points.length ? [
+        renderMatrix(points, meta),
+        el('div', { class: 'caption' }, meta.caption),
+        points.map((point) => el('div', { class: 'point' },
+          el('div', { class: 'title' }, el('b', null, '#' + point.number), point.title || ''),
+          el('div', { class: 'tags' },
+            el('span', { class: 'tag level' }, point.level || MISSING),
+            el('span', { class: 'tag ' + (GRADE_CLASS[point.impact] || '') }, meta.gradeLabel + ' ' + (point.impact || MISSING)),
+            pricedTag(point.priced_in)),
+          el('div', null, point.evidence || MISSING),
+          sourceLine(point.sources))),
+      ] : emptyNote(meta.listEmpty),
+      el('h3', null, '证伪条件', el('small', null, meta.falsifierNote)),
+      falsifiers.length ? falsifiers.map((entry) => el('div', { class: 'falsifier' },
+        el('div', { class: 'signal' }, entry.signal || ''),
+        entry.check && el('div', { class: 'check' }, '怎么检验：' + entry.check)))
+        : emptyNote(MISSING),
+      side === 'bear' && [
+        el('h3', null, '通用空头清单', el('small', null, '只列有实质内容的项')),
+        (data.general_risks || []).length ? itemTable(data.general_risks)
+          : emptyNote('竞争、客户集中度、监管诉讼、资产负债表、内部人、会计这几项都查过，没有发现有实质内容的利空。'),
+      ]);
+  }
+
+  // ---------- 个股页：新闻与日历 ----------
+  function newsRows(items, withCategory) {
+    return (items || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map((item) => el('tr', null,
+      el('td', { class: 'nowrap num' }, item.date || ''),
+      withCategory && el('td', { class: 'nowrap' }, item.category || ''),
+      el('td', null, el('div', { class: 'item-title' }, item.title || ''), el('div', { class: 'item-detail' }, item.detail || '')),
+      el('td', { class: 'nowrap' }, credibilityBadge(item.credibility)),
+      el('td', { class: 'nowrap' }, pricedTag(item.priced_in)),
+      el('td', { class: 'nowrap' }, sourceLink(item.source_url, item.source_name))));
+  }
+  function renderOvernight(stock) {
+    const overnight = stock.overnight || {};
+    const rows = newsRows(overnight.items, false);
+    return [
+      el('h3', null, '昨晚到今早'),
+      overnight.note && el('p', null, overnight.note),
+      rows.length ? table(['日期', '消息', '可信度', '是否已计价', '来源'], rows) : emptyNote('没有找到新的消息。'),
+    ];
+  }
+  function renderNews(stock) {
+    const rows = [];
+    for (const category of CATEGORY_ORDER) rows.push(...newsRows((stock.news || []).filter((item) => item.category === category), true));
+    const searched = stock.news_categories_empty || [];
+    return [
+      el('h3', null, '公司新闻', el('small', null, '过去 14 天，按类别')),
+      rows.length ? table(['日期', '类别', '消息', '可信度', '是否已计价', '来源'], rows) : emptyNote(MISSING),
+      searched.length ? emptyNote('已搜索但未找到消息的类别：' + searched.join('、')) : null,
+    ];
+  }
+  function renderCalendar(stock) {
+    const events = (stock.calendar || []).map((event) => Object.assign({ scope: '公司' }, event))
+      .concat((MACRO.calendar || []).map((event) => Object.assign({ scope: '宏观' }, event)))
+      .sort(byEventDate);
+    const rows = events.map((event) => el('tr', null,
+      el('td', { class: 'nowrap num' }, event.date || '日期未定'),
+      el('td', { class: 'nowrap' }, el('span', { class: 'badge' }, event.scope)),
+      el('td', null, el('div', { class: 'item-title' }, event.event || ''), el('div', { class: 'item-detail' }, event.detail || '')),
+      el('td', { class: 'nowrap' }, event.scope === '公司' ? credibilityBadge(event.credibility) : el('span', { class: 'muted' }, event.importance ? '重要性 ' + event.importance : '')),
+      el('td', { class: 'nowrap' }, sourceLink(event.source_url, event.source_name))));
+    return [
+      el('h3', null, '事件日历', el('small', null, '今天起 14 天，含宏观')),
+      rows.length ? table(['日期', '范围', '事件', '可信度 / 重要性', '来源'], rows) : emptyNote(MISSING),
+    ];
+  }
+
+  function renderSources(stock) {
+    const seen = new Set(), unique = [];
+    const add = (url, name) => {
+      const key = url || name;
+      if (!key || seen.has(key)) return;
+      seen.add(key); unique.push({ url, name });
+    };
+    const addAll = (items) => { for (const item of items || []) for (const source of item.sources || []) add(source.url, source.name); };
+    for (const side of ['bull', 'bear']) addAll((stock[side] || {}).points);
+    addAll((stock.bear || {}).general_risks);
+    addAll(stock.earnings);
+    addAll((stock.sector || {}).items);
+    for (const item of [].concat((stock.overnight || {}).items || [], stock.news || [], stock.calendar || [])) {
+      if (item.source_url) add(item.source_url, item.source_name);
+    }
+    return unique.length ? el('ol', { class: 'refs' }, unique.map((source) => el('li', null, sourceLink(source.url, source.name || source.url)))) : emptyNote(MISSING);
+  }
+
+  function renderStockPage(stock) {
+    const market = SYMBOLS[stock.ticker] || {};
+    const sector = stock.sector || {};
+    return [
+      renderStockHead(stock, market),
+      section('01', '今日分析', null,
+        renderTendency(stock), renderScenarios(stock), renderPriceAction(stock), renderTechnical(stock, market)),
+      section('02', '多空对照', stock.earnings_mode && '财报时点：' + stock.earnings_mode + (stock.earnings_mode_basis ? '（' + stock.earnings_mode_basis + '）' : ''),
+        el('div', { class: 'case-grid' }, renderCase(stock, 'bull'), renderCase(stock, 'bear')),
+        el('h3', null, stock.earnings_mode === '财报前' ? '财报前专项' : '财报专项', el('small', null, '多空共用的事实')),
+        itemTable(stock.earnings),
+        el('h3', null, '板块与行业', el('small', null, '把公司的问题和环境的问题分开')),
+        sector.driver && el('div', { class: 'callout' }, el('b', null, '近期走势的主要驱动：'), sector.driver),
+        itemTable(sector.items)),
+      section('03', '新闻与日历', null, renderOvernight(stock), renderNews(stock), renderCalendar(stock)),
+      section('04', '来源', null, renderSources(stock)),
+      disclaimer(),
+    ];
+  }
+
+  // ---------- 路由 ----------
+  const stockByTicker = Object.fromEntries(STOCKS.map((stock) => [stock.ticker, stock]));
+  const app = document.getElementById('app');
+  const main = el('main');
+
+  function currentRoute() {
+    let route = '';
+    try { route = decodeURIComponent(location.hash.slice(1)); } catch (error) { route = ''; }
+    return stockByTicker[route] ? route : MACRO_ROUTE;
+  }
+  function render(keepScroll) {
+    const scrollY = window.scrollY;
+    const route = currentRoute();
+    for (const chart of charts) chart.dispose();
+    charts = [];
+    pendingCharts = [];
+    app.replaceChildren(renderSidebar(), main);
+    for (const item of app.querySelectorAll('.nav-item')) item.classList.toggle('active', item.getAttribute('data-route') === route);
+    main.replaceChildren(...[].concat(route === MACRO_ROUTE ? renderMacroPage() : renderStockPage(stockByTicker[route])).filter(Boolean));
+    document.title = (route === MACRO_ROUTE ? '宏观' : route) + ' · 盘前简报 ' + (REPORT.date || '');
+    for (const draw of pendingCharts) draw();
+    window.scrollTo(0, keepScroll ? scrollY : 0);
+  }
+
+  applyScheme(loadScheme());
+  window.addEventListener('hashchange', () => render(false));
+  window.addEventListener('resize', () => { for (const chart of charts) chart.resize(); });
+  render(false);
+})();
+</script>
+</body>
+</html>

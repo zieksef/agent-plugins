@@ -7,6 +7,10 @@
     {
       "name": "zstack",
       "source": "./plugins/zstack"
+    },
+    {
+      "name": "stock",
+      "source": "./plugins/stock"
     }
   ]
 }
